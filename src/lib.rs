@@ -60,6 +60,7 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+pub mod encoding;
 pub mod error;
 pub mod generators;
 pub mod sym;

@@ -42,6 +42,9 @@ pub(crate) fn validate_barcode(barcode: &[u8]) -> Result<()> {
 #[cfg(feature = "ascii")]
 pub mod ascii;
 
+#[cfg(feature = "gpui")]
+pub mod gpui;
+
 #[cfg(feature = "json")]
 pub mod json;
 
