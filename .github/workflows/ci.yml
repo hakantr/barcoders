@@ -15,7 +15,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   GPUI_REPOSITORY: hakantr/gpui
-  GPUI_REVISION: b460c6d21e0738374d79fa854baf4d17da221371
+  GPUI_REVISION: 981b10eb6da5621c3ba0b456dba82609da1ab550
   RUSTFLAGS: -D warnings
 
 jobs:
