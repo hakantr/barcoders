@@ -11,7 +11,24 @@ Kayıt türleri:
 - `[düzeltildi]`: Hata düzeltmeleri.
 - `[güvenlik]`: Güvenlik açığı nedeniyle kullanıcıları yükseltmeye çağıran değişiklikler.
 
-### Yayımlanmadı
+### v3.0.0 (Yayımlanmadı)
+
+- [eklendi] Yalnızca `../gpui/crates/gpui` yerel kaynağına bağlanan `gpui` özelliği ve cihaz
+  pikseline hizalı `canvas` üreteci eklendi.
+- [eklendi] Ucuz klonlanan `EncodedBarcode`, ortak `Barcode` trait'i ve ardışık modül iteratörü
+  eklendi.
+- [değişti] `Error` varyantları karakter konumu, uzunluk aralığı, sağlama değeri ve boyut nedeni
+  gibi yapılandırılmış bağlam alanları taşıyor ve enum `non_exhaustive` olarak işaretlendi.
+- [değişti] Kamuya açık barkod tipleri GPUI durum karşılaştırmaları için `Clone`, `PartialEq` ve
+  `Eq` uyguluyor.
+- [eklendi] Ham kodlamalar 100.000 modül, bellek ayıran üreteçler 64 MiB ile sınırlandı; sınırlar
+  tahsisten önce `Error::ResourceLimit` ile bildiriliyor.
+- [değişti] `image` ve `gpui` özellikleri ihtiyaç duydukları `std` özelliğini kendileri
+  etkinleştiriyor.
+- [değişti] CI, `hakantr/gpui` deposunun `981b10eb6da5621c3ba0b456dba82609da1ab550`
+  revizyonunu kardeş dizine alıyor ve GPUI'nin registry yerine path kaynağından geldiğini denetliyor.
+- [değişti] Yerel GPUI'nin `stacksafe` bağımlılığı 1.0.3'e yükseltildi; böylece
+  `proc-macro-error2` gelecek-uyumluluk uyarısı bağımlılık ağacından çıkarıldı.
 
 - [değişti] Crate, Rust 2024 sürümüne geçirildi; araç zinciri ve desteklenen en eski Rust sürümü
   1.95.0 olarak sabitlendi.
@@ -28,7 +45,19 @@ Kayıt türleri:
 - [değişti] Kaynak açıklamaları, örnekler, hata iletileri ve kullanıcı belgeleri Türkçeleştirildi.
 - [değişti] CI kapsamı Rust 1.95, güncel kararlı Rust, Linux, macOS, Windows, özellik birleşimleri,
   rustfmt, Clippy ve rustdoc denetimlerini içerecek biçimde genişletildi.
-- [eklendi] RustSec, GitHub bağımlılık incelemesi ve haftalık Dependabot güncellemeleri eklendi.
+- [eklendi] RustSec, GitHub bağımlılık incelemesi ve haftalık GitHub Actions Dependabot
+  güncellemeleri eklendi. Cargo bağımlılıkları, harici GPUI path kaynağını da içeren RustSec
+  kilit dosyası üzerinden denetleniyor.
+
+#### 2.x sürümünden geçiş
+
+- `Error::Character`, `Error::Length`, `Error::Checksum`, `Error::Generate`,
+  `Error::InvalidEncoding` ve `Error::Dimension` desenlerinde yeni alanları `..` ile karşılayın.
+- `Error` için kapsamlı eşleşmelerde, gelecekte eklenecek hata durumları için genel bir kol ekleyin.
+- `EANSUPP` ve `TF` varyantlarını doğrudan ham `Vec<u8>` ile kurmak yerine kamuya açık kurucuları
+  kullanın.
+- GPUI bileşenlerinde `encode()` sonucunu her render çağrısında üretmek yerine `Barcode::encoded()`
+  sonucunu durum içinde saklayın.
 
 ### v2.0.0 (2024-04-04)
 

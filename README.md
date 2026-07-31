@@ -9,7 +9,8 @@
 
 Seçilen barkod sembolojisine uygun veriyi temel ikili yapıyı temsil eden bir `Vec<u8>` değerine
 kodlar. Ardından isteğe bağlı yerleşik üreteçlerden biriyle SVG, GIF, PNG, WEBP, JSON veya ASCII
-çıktısı alabilir ya da kendi üretecinizi oluşturabilirsiniz.
+çıktısı alabilir, yerel GPUI ağacı için cihaz pikseline hizalı bir öğe oluşturabilir ya da kendi
+üretecinizi yazabilirsiniz.
 
 ## Kurulum
 
@@ -19,14 +20,14 @@ Yalnızca kodlama işlevleri için:
 
 ```toml
 [dependencies]
-barcoders = "2.0.0"
+barcoders = "3.0.0"
 ```
 
 Belirli çıktı biçimleri üretmek için gerekli özellikleri etkinleştirin:
 
 ```toml
 [dependencies]
-barcoders = { version = "2.0.0", features = ["image", "ascii", "svg", "json"] }
+barcoders = { version = "3.0.0", features = ["image", "ascii", "svg", "json"] }
 ```
 
 Her üreteç isteğe bağlı bir özelliktir; böylece yalnızca kullandığınız işlevleri derlersiniz.
@@ -68,6 +69,7 @@ Barcoders'ın amacı, yaygın sembolojilerin tümünü ve daha az kullanılanlar
 - GIF (özellik: `image`)
 - WEBP (özellik: `image`)
 - Görüntü tamponu (özellik: `image`)
+- Yerel GPUI `canvas` öğesi (özellik: `gpui`)
 - Kendi üreteciniz
 
 ## Hata ve panik politikası
@@ -77,6 +79,11 @@ geçersiz ikili gösterim, taşan çıktı boyutları ve hedef biçime dönüşt
 bir hata döndürür. Doğrulanmış bir barkodun `encode` işlemi mantıksal olarak hatasız olduğundan
 doğrudan `Vec<u8>` döndürür.
 
+Hatalar desteklenmeyen karakterin konumu, beklenen uzunluk aralığı, sağlama basamağı ve geçersiz
+boyutun nedeni gibi çağıranın kullanıcı arayüzünde gösterebileceği alanları taşır. Hata enumu yeni
+durumların geriye uyumlu eklenebilmesi için `non_exhaustive` olarak tanımlıdır; desen eşlemelerinde
+bir genel kol bulundurun.
+
 Geçersiz durumların tip sistemiyle engellenebildiği yerlerde özel alanlar ve doğrulanmış yeni tipler
 kullanılır. Geçersiz dış girdi, desteklenmeyen seçenek veya normal çalışma hatası nedeniyle kütüphane
 kasıtlı olarak paniklemez. Bellek tükenmesi, yığın taşması, bağımlılık davranışları ya da bozulan bir
@@ -84,6 +91,10 @@ iç değişmez gibi süreç düzeyindeki durumlar bu garantinin dışındadır.
 
 Özet yaklaşım: girdiyi sınırda doğrula, geçerli tipe dönüştür, çekirdek işlemleri mümkün olduğunca
 hatasız tut.
+
+Üreteçlere verilen ham ikili gösterimler en fazla 100.000 modül, bellek ayıran çıktılar ise en fazla
+64 MiB ile sınırlıdır. Bu sınırlar bellek tahsisinden önce denetlenir ve aşıldığında
+`Error::ResourceLimit` döndürülür.
 
 ## Örnekler
 
@@ -156,6 +167,48 @@ let gif = Image::GIF {
     background: Color::new([0, 255, 20, 255]),
 };
 ```
+
+### Yerel GPUI ile çizim
+
+`gpui` özelliği crates.io üzerindeki GPUI paketini kullanmaz. Hem Barcoders hem GPUI depoları
+bileşen deposunun kardeşleri olarak bulunmalı ve bağımlılıklar doğrudan yerel kaynaklara
+bağlanmalıdır:
+
+```toml
+[dependencies]
+barcoders = { path = "../barcoders", default-features = false, features = ["gpui"] }
+gpui = { path = "../gpui/crates/gpui", default-features = false }
+```
+
+`GPUI` üreteci siyah çubukları beyaz zemin üzerinde, her iki yanda varsayılan 12 modüllük sessiz
+alanla çizer. Kullanılabilir genişliğe sığan en büyük tam cihaz pikseli modül genişliğini seçer ve
+aynı değerdeki ardışık modülleri tek bir dikdörtgen olarak boyar:
+
+```rust
+use barcoders::encoding::Barcode;
+use barcoders::generators::gpui::GPUI;
+use barcoders::sym::code128::Code128;
+use gpui::{
+    InteractiveElement, IntoElement, ParentElement, Role, StatefulInteractiveElement, div,
+};
+
+fn barcode_element(data: &str) -> barcoders::error::Result<impl IntoElement> {
+    let barcode = Code128::new(data)?;
+    let canvas = GPUI::new(96)?.generate_encoded(barcode.encoded())?;
+
+    Ok(div()
+        .id("product-barcode")
+        .role(Role::Image)
+        .aria_label(format!("Code 128 barkodu: {data}"))
+        .child(canvas))
+}
+```
+
+`EncodedBarcode` iç verisini `Arc` ile paylaştığından klonlanması ucuzdur ve arka plan işlerinde
+`Send + Sync + 'static` olarak kullanılabilir. Canlı bir GPUI bileşeninde doğrulama ve kodlama
+sonucunu bir `Entity` alanında saklayın; `render` sırasında yalnızca önbellekteki değeri klonlayıp
+öğeyi oluşturun. İnsan tarafından okunabilir veriyi GPUI metni olarak ayrıca göstermek ve barkodu
+durumlu bir `div` içinde erişilebilir etiketle sunmak bileşenin sorumluluğundadır.
 
 ### SVG üretimi
 

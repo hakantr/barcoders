@@ -1,12 +1,12 @@
 [package]
 name = "barcoders"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Andrew Buntine <info@bunts.io>"]
 description = "Rust için barkod kodlama kütüphanesi"
-homepage = "https://github.com/buntine/barcoders"
-repository = "https://github.com/buntine/barcoders"
+homepage = "https://github.com/hakantr/barcoders"
+repository = "https://github.com/hakantr/barcoders"
 documentation = "https://docs.rs/barcoders"
 readme = "README.md"
 keywords = ["barcode", "barcodes", "barcode-encoding"]
@@ -27,6 +27,7 @@ std = []
 
 [dependencies.gpui]
 path = "../gpui/crates/gpui"
+version = "=0.3.0"
 optional = true
 default-features = false
 
@@ -37,7 +38,12 @@ default-features = false
 features = ["gif", "png", "webp"]
 
 [package.metadata.docs.rs]
-all-features = true
+no-default-features = true
+features = ["ascii", "image", "json", "svg", "std"]
+
+[[example]]
+name = "gpui"
+required-features = ["gpui"]
 
 [lints.clippy]
 indexing_slicing = "deny"
