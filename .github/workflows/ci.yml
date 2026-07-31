@@ -43,7 +43,7 @@ jobs:
 
       - name: GPUI'nin yalnızca path kaynağından geldiğini doğrula
         run: >-
-          cargo metadata --format-version 1 |
+          cargo metadata --all-features --format-version 1 |
           jq -e '.packages[] |
           select(.name == "gpui" and .source == null and
           (.manifest_path | endswith("/gpui/crates/gpui/Cargo.toml")))' >/dev/null
