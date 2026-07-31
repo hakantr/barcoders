@@ -6,7 +6,6 @@
 use crate::error::{Error, Result};
 use crate::sym::ean13::{ENCODINGS, LEFT_GUARD, MIDDLE_GUARD, RIGHT_GUARD};
 use crate::sym::{Parse, helpers};
-use core::char;
 use core::ops::Range;
 use helpers::{Vec, vec};
 
@@ -19,15 +18,13 @@ impl EAN8 {
     /// Returns Result<EAN8, Error> indicating parse success.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EAN8> {
         let d = EAN8::parse(data.as_ref())?;
-        let digits: Vec<u8> = d
-            .chars()
-            .map(|c| c.to_digit(10).expect("Unknown character") as u8)
-            .collect();
+        let digits = helpers::parse_digits(d)?;
 
-        let ean8 = EAN8(digits[0..7].to_vec());
+        let ean8 = EAN8(digits.iter().copied().take(7).collect());
 
         // If checksum digit is provided, check the checksum.
-        if digits.len() == 8 && ean8.checksum_digit() != digits[7] {
+        let checksum = ean8.checksum_digit();
+        if digits.get(7).is_some_and(|provided| checksum != *provided) {
             return Err(Error::Checksum);
         }
 
@@ -36,11 +33,15 @@ impl EAN8 {
 
     /// Calculates the checksum digit using a weighting algorithm.
     fn checksum_digit(&self) -> u8 {
-        helpers::modulo_10_checksum(&self.0[..], false)
+        helpers::modulo_10_checksum(self.0.as_slice(), false)
     }
 
     fn number_system_digits(&self) -> &[u8] {
-        &self.0[0..2]
+        helpers::invariant_or(
+            self.0.get(0..2),
+            &[],
+            "EAN-8 sayı sistemi basamakları oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn number_system_encoding(&self) -> Vec<u8> {
@@ -58,15 +59,31 @@ impl EAN8 {
     }
 
     fn char_encoding(&self, side: usize, d: u8) -> [u8; 7] {
-        ENCODINGS[side][d as usize]
+        let encoding = ENCODINGS
+            .get(side)
+            .and_then(|encodings| encodings.get(usize::from(d)))
+            .copied();
+        helpers::invariant_or(
+            encoding,
+            [0; 7],
+            "EAN-8 kodlama dizini oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn left_digits(&self) -> &[u8] {
-        &self.0[2..4]
+        helpers::invariant_or(
+            self.0.get(2..4),
+            &[],
+            "EAN-8 sol basamakları oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn right_digits(&self) -> &[u8] {
-        &self.0[4..]
+        helpers::invariant_or(
+            self.0.get(4..),
+            &[],
+            "EAN-8 sağ basamakları oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn left_payload(&self) -> Vec<u8> {
@@ -92,17 +109,20 @@ impl EAN8 {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        helpers::join_slices(
-            &[
-                &LEFT_GUARD[..],
-                &self.number_system_encoding()[..],
-                &self.left_payload()[..],
-                &MIDDLE_GUARD[..],
-                &self.right_payload()[..],
-                &self.checksum_encoding()[..],
-                &RIGHT_GUARD[..],
-            ][..],
-        )
+        let number_system = self.number_system_encoding();
+        let left_payload = self.left_payload();
+        let right_payload = self.right_payload();
+        let checksum = self.checksum_encoding();
+
+        helpers::join_slices(&[
+            &LEFT_GUARD,
+            number_system.as_slice(),
+            left_payload.as_slice(),
+            &MIDDLE_GUARD,
+            right_payload.as_slice(),
+            &checksum,
+            &RIGHT_GUARD,
+        ])
     }
 }
 
@@ -114,55 +134,60 @@ impl Parse for EAN8 {
 
     /// Returns the set of valid characters allowed in this type of barcode.
     fn valid_chars() -> Vec<char> {
-        (0..10).map(|i| char::from_digit(i, 10).unwrap()).collect()
+        helpers::decimal_chars()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::ean8::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn new_ean8() {
+    fn new_ean8() -> Result<()> {
         let ean8 = EAN8::new("1234567");
 
         assert!(ean8.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_ean8() {
+    fn invalid_data_ean8() -> Result<()> {
         let ean8 = EAN8::new("1234er1");
 
-        assert_eq!(ean8.err().unwrap(), Error::Character);
+        assert!(matches!(ean8, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_len_ean8() {
+    fn invalid_len_ean8() -> Result<()> {
         let ean8 = EAN8::new("1111112222222333333");
 
-        assert_eq!(ean8.err().unwrap(), Error::Length);
+        assert!(matches!(ean8, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_checksum_ean8() {
+    fn invalid_checksum_ean8() -> Result<()> {
         let ean8 = EAN8::new("88023020");
 
-        assert_eq!(ean8.err().unwrap(), Error::Checksum)
+        assert!(matches!(ean8, Err(Error::Checksum)));
+        Ok(())
     }
 
     #[test]
-    fn ean8_encode() {
-        let ean81 = EAN8::new("5512345").unwrap(); // Check digit: 7
-        let ean82 = EAN8::new("9834651").unwrap(); // Check digit: 3
+    fn ean8_encode() -> Result<()> {
+        let ean81 = EAN8::new("5512345")?; // Check digit: 7
+        let ean82 = EAN8::new("9834651")?; // Check digit: 3
 
         assert_eq!(
             collapse_vec(ean81.encode()),
@@ -172,5 +197,6 @@ mod tests {
             collapse_vec(ean82.encode()),
             "1010001011011011101111010100011010101010000100111011001101010000101"
         );
+        Ok(())
     }
 }

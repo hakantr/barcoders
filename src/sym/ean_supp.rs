@@ -9,7 +9,6 @@
 use crate::error::{Error, Result};
 use crate::sym::ean13::ENCODINGS;
 use crate::sym::{Parse, helpers};
-use core::char;
 use core::ops::Range;
 use helpers::{Vec, vec};
 
@@ -37,13 +36,33 @@ const EAN2_PARITY: [[usize; 5]; 4] = [
     [1, 1, 0, 0, 0],
 ];
 
+/// Doğrulanmış iki basamaklı ek EAN verisi.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EAN2([u8; 2]);
+
+impl AsRef<[u8]> for EAN2 {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Doğrulanmış beş basamaklı ek EAN verisi.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EAN5([u8; 5]);
+
+impl AsRef<[u8]> for EAN5 {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 /// The Supplemental EAN barcode type.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EANSUPP {
     /// EAN-2 supplemental barcode type.
-    EAN2(Vec<u8>),
+    EAN2(EAN2),
     /// EAN-5 supplemental barcode type.
-    EAN5(Vec<u8>),
+    EAN5(EAN5),
 }
 
 impl EANSUPP {
@@ -53,14 +72,13 @@ impl EANSUPP {
     /// the length of `data`.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EANSUPP> {
         EANSUPP::parse(data.as_ref()).and_then(|d| {
-            let digits: Vec<u8> = d
-                .chars()
-                .map(|c| c.to_digit(10).expect("Unknown character") as u8)
-                .collect();
+            let digits = helpers::parse_digits(d)?;
 
-            match digits.len() {
-                2 => Ok(EANSUPP::EAN2(digits)),
-                5 => Ok(EANSUPP::EAN5(digits)),
+            match digits.as_slice() {
+                [first, second] => Ok(EANSUPP::EAN2(EAN2([*first, *second]))),
+                [first, second, third, fourth, fifth] => Ok(EANSUPP::EAN5(EAN5([
+                    *first, *second, *third, *fourth, *fifth,
+                ]))),
                 _ => Err(Error::Length),
             }
         })
@@ -68,53 +86,75 @@ impl EANSUPP {
 
     fn raw_data(&self) -> &[u8] {
         match *self {
-            EANSUPP::EAN2(ref d) | EANSUPP::EAN5(ref d) => &d[..],
+            EANSUPP::EAN2(ref data) => data.as_ref(),
+            EANSUPP::EAN5(ref data) => data.as_ref(),
         }
     }
 
     fn char_encoding(&self, side: usize, d: u8) -> [u8; 7] {
-        ENCODINGS[side][d as usize]
+        let encoding = ENCODINGS
+            .get(side)
+            .and_then(|encodings| encodings.get(usize::from(d)))
+            .copied();
+        helpers::invariant_or(
+            encoding,
+            [0; 7],
+            "Ek EAN kodlama dizini oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     /// Calculates the checksum digit using a modified modulo-10 weighting
     /// algorithm. This only makes sense for EAN5 barcodes.
     fn checksum_digit(&self) -> u8 {
-        let mut odds = 0;
-        let mut evens = 0;
+        let mut odds = 0u16;
+        let mut evens = 0u16;
         let data = self.raw_data();
 
         for (i, d) in data.iter().enumerate() {
             match i % 2 {
-                1 => evens += *d,
-                _ => odds += *d,
+                1 => evens = (evens + u16::from(*d)) % 10,
+                _ => odds = (odds + u16::from(*d)) % 10,
             }
         }
 
-        match ((odds * 3) + (evens * 9)) % 10 {
-            10 => 0,
-            n => n,
-        }
+        let checksum = ((odds * 3) + (evens * 9)) % 10;
+
+        helpers::invariant_or(
+            u8::try_from(checksum).ok(),
+            0,
+            "Ek EAN sağlama basamağı u8 aralığında olmalıdır",
+        )
     }
 
     fn parity(&self) -> [usize; 5] {
         match *self {
-            EANSUPP::EAN2(ref d) => {
-                let modulo = ((d[0] * 10) + d[1]) % 4;
-                EAN2_PARITY[modulo as usize]
+            EANSUPP::EAN2(data) => {
+                let [first, second] = data.0;
+                let modulo = ((usize::from(first) * 10) + usize::from(second)) % 4;
+                helpers::invariant_or(
+                    EAN2_PARITY.get(modulo).copied(),
+                    [0; 5],
+                    "EAN-2 eşlik düzeni tablo sınırları içinde olmalıdır",
+                )
             }
-            EANSUPP::EAN5(ref _d) => {
-                let check = self.checksum_digit() as usize;
-                EAN5_PARITY[check]
+            EANSUPP::EAN5(_) => {
+                let check = usize::from(self.checksum_digit());
+                helpers::invariant_or(
+                    EAN5_PARITY.get(check).copied(),
+                    [0; 5],
+                    "EAN-5 eşlik düzeni tablo sınırları içinde olmalıdır",
+                )
             }
         }
     }
 
     fn payload(&self) -> Vec<u8> {
         let mut p = vec![];
+        let parity = self.parity();
         let slices: Vec<[u8; 7]> = self
             .raw_data()
             .iter()
-            .zip(self.parity().iter())
+            .zip(parity.iter())
             .map(|(d, s)| self.char_encoding(*s, *d))
             .collect();
 
@@ -133,7 +173,8 @@ impl EANSUPP {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        helpers::join_slices(&[&LEFT_GUARD[..], &self.payload()[..]][..])
+        let payload = self.payload();
+        helpers::join_slices(&[&LEFT_GUARD, payload.as_slice()])
     }
 }
 
@@ -145,65 +186,72 @@ impl Parse for EANSUPP {
 
     /// Returns the set of valid characters allowed in this type of barcode.
     fn valid_chars() -> Vec<char> {
-        (0..10).map(|i| char::from_digit(i, 10).unwrap()).collect()
+        helpers::decimal_chars()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::ean_supp::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn new_ean2() {
+    fn new_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("12");
 
         assert!(ean2.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn new_ean5() {
+    fn new_ean5() -> Result<()> {
         let ean5 = EANSUPP::new("12345");
 
         assert!(ean5.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_ean2() {
+    fn invalid_data_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("AT");
 
-        assert_eq!(ean2.err().unwrap(), Error::Character);
+        assert!(matches!(ean2, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_len_ean2() {
+    fn invalid_len_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("123");
 
-        assert_eq!(ean2.err().unwrap(), Error::Length);
+        assert!(matches!(ean2, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn ean2_encode() {
-        let ean21 = EANSUPP::new("34").unwrap();
+    fn ean2_encode() -> Result<()> {
+        let ean21 = EANSUPP::new("34")?;
 
         assert_eq!(collapse_vec(ean21.encode()), "10110100001010100011");
+        Ok(())
     }
 
     #[test]
-    fn ean5_encode() {
-        let ean51 = EANSUPP::new("51234").unwrap();
+    fn ean5_encode() -> Result<()> {
+        let ean51 = EANSUPP::new("51234")?;
 
         assert_eq!(
             collapse_vec(ean51.encode()),
             "10110110001010011001010011011010111101010011101"
         );
+        Ok(())
     }
 }

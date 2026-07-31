@@ -16,6 +16,16 @@
 //! - `image`: Generate image-based barcodes.
 //! - `svg`: Generate SVG barcodes.
 
+use crate::error::{Error, Result};
+
+pub(crate) fn validate_barcode(barcode: &[u8]) -> Result<()> {
+    if barcode.iter().all(|bit| matches!(bit, 0 | 1)) {
+        Ok(())
+    } else {
+        Err(Error::InvalidEncoding)
+    }
+}
+
 #[cfg(feature = "ascii")]
 pub mod ascii;
 

@@ -90,26 +90,42 @@ impl Code39 {
     }
 
     /// Calculates the checksum character using a modulo-43 algorithm.
-    fn checksum_char(&self) -> Option<char> {
-        let get_char_pos = |&c| CHARS.iter().position(|t| t.0 == c).unwrap();
-        let indices = self.data.iter().map(&get_char_pos);
-        let index = indices.sum::<usize>() % CHARS.len();
+    fn checksum_char(&self) -> char {
+        let mut sum = 0usize;
+        for character in &self.data {
+            let position = CHARS.iter().position(|candidate| candidate.0 == *character);
+            let position = helpers::invariant_or(
+                position,
+                0,
+                "Code39 sağlama hesabındaki karakter doğrulanmış olmalıdır",
+            );
+            sum = (sum + position) % CHARS.len();
+        }
 
-        CHARS.get(index).map(|&(c, _)| c)
+        let character = CHARS
+            .get(sum % CHARS.len())
+            .map(|(character, _)| *character);
+        helpers::invariant_or(
+            character,
+            '0',
+            "Code39 sağlama karakteri tablo sınırları içinde olmalıdır",
+        )
     }
 
     fn checksum_encoding(&self) -> [u8; 12] {
-        match self.checksum_char() {
-            Some(c) => self.char_encoding(c),
-            None => panic!("Cannot compute checksum"),
-        }
+        self.char_encoding(self.checksum_char())
     }
 
     fn char_encoding(&self, c: char) -> [u8; 12] {
-        match CHARS.iter().find(|&ch| ch.0 == c) {
-            Some(&(_, enc)) => enc,
-            None => panic!("Unknown char: {}", c),
-        }
+        let encoding = CHARS
+            .iter()
+            .find(|candidate| candidate.0 == c)
+            .map(|(_, encoding)| *encoding);
+        helpers::invariant_or(
+            encoding,
+            [0; 12],
+            "Code39 iç verisindeki karakter oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     // Encoded characters are separated by a single "narrow" bar in
@@ -136,9 +152,9 @@ impl Code39 {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        let guard = &GUARD[..];
+        let payload = self.payload();
 
-        helpers::join_slices(&[guard, &self.payload()[..], guard][..])
+        helpers::join_slices(&[&GUARD, payload.as_slice(), &GUARD])
     }
 }
 
@@ -155,43 +171,47 @@ impl Parse for Code39 {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::code39::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn new_code39() {
+    fn new_code39() -> Result<()> {
         let code39 = Code39::new("12345");
 
         assert!(code39.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_code39() {
+    fn invalid_data_code39() -> Result<()> {
         let code39 = Code39::new("1212s");
 
-        assert_eq!(code39.err().unwrap(), Error::Character);
+        assert!(matches!(code39, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_len_code39() {
+    fn invalid_len_code39() -> Result<()> {
         let code39 = Code39::new("");
 
-        assert_eq!(code39.err().unwrap(), Error::Length);
+        assert!(matches!(code39, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn code39_encode() {
-        let code391 = Code39::new("1234").unwrap();
-        let code392 = Code39::new("983RD512").unwrap();
-        let code393 = Code39::new("TEST8052").unwrap();
+    fn code39_encode() -> Result<()> {
+        let code391 = Code39::new("1234")?;
+        let code392 = Code39::new("983RD512")?;
+        let code393 = Code39::new("TEST8052")?;
 
         assert_eq!(
             collapse_vec(code391.encode()),
@@ -205,12 +225,13 @@ mod tests {
             collapse_vec(code393.encode()),
             "100101101101010101101100101101011001010101101011001010101101100101101001011010101001101101011010011010101011001010110100101101101"
         );
+        Ok(())
     }
 
     #[test]
-    fn code39_encode_with_checksum() {
-        let code391 = Code39::with_checksum("1234").unwrap();
-        let code392 = Code39::with_checksum("983RD512").unwrap();
+    fn code39_encode_with_checksum() -> Result<()> {
+        let code391 = Code39::with_checksum("1234")?;
+        let code392 = Code39::with_checksum("983RD512")?;
 
         assert_eq!(
             collapse_vec(code391.encode()),
@@ -220,5 +241,6 @@ mod tests {
             collapse_vec(code392.encode()),
             "1001011011010101100101101011010010110101101100101010110101011001010101100101101101001101010110100101011010110010101101011011010010100101101101"
         );
+        Ok(())
     }
 }

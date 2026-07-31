@@ -23,7 +23,8 @@
 //!               .xmlns(String::from("http://www.w3.org/2000/svg"));
 //! ```
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::generators::validate_barcode;
 #[cfg(not(feature = "std"))]
 use alloc::{
     format,
@@ -150,7 +151,8 @@ impl SVG {
             _ => self.background,
         };
 
-        let opacity = match &fill.to_opacity()[..] {
+        let opacity_value = fill.to_opacity();
+        let opacity = match opacity_value.as_str() {
             "1.00" | "1" => "".to_string(),
             o => format!(" fill-opacity=\"{}\" ", o),
         };
@@ -169,13 +171,18 @@ impl SVG {
     /// error message.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let barcode = barcode.as_ref();
-        let width = (barcode.len() as u32) * self.xdim;
-        let rects: String = barcode
-            .iter()
-            .enumerate()
-            .filter(|&(_, &n)| n == 1)
-            .map(|(i, &n)| self.rect(n, i as u32 * self.xdim, self.xdim))
-            .collect();
+        validate_barcode(barcode)?;
+        let barcode_len = u32::try_from(barcode.len()).map_err(|_| Error::Dimension)?;
+        let width = barcode_len.checked_mul(self.xdim).ok_or(Error::Dimension)?;
+        let mut rects = String::new();
+
+        for (index, &digit) in barcode.iter().enumerate() {
+            if digit == 1 {
+                let index = u32::try_from(index).map_err(|_| Error::Dimension)?;
+                let offset = index.checked_mul(self.xdim).ok_or(Error::Dimension)?;
+                rects.push_str(self.rect(digit, offset, self.xdim).as_str());
+            }
+        }
 
         let xmlns = match &self.xmlns {
             Some(xmlns) => format!("xmlns=\"{xmlns}\" "),
@@ -195,6 +202,7 @@ impl SVG {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::{Error, Result};
     use crate::generators::svg::*;
     use crate::sym::codabar::*;
     use crate::sym::code11::*;
@@ -218,36 +226,42 @@ mod tests {
     const WRITE_TO_FILE: bool = true;
 
     #[cfg(feature = "std")]
-    fn write_file(data: &str, file: &'static str) {
-        let path = open_file(file);
+    fn write_file(data: &str, file: &'static str) -> Result<()> {
+        let path = open_file(file)?;
         let mut writer = BufWriter::new(path);
-        writer.write_all(data.as_bytes()).unwrap();
+        writer
+            .write_all(data.as_bytes())
+            .map_err(|_| Error::Generate)
     }
 
     #[cfg(not(feature = "std"))]
-    fn write_file(_data: &str, _file: &'static str) {}
+    fn write_file(_data: &str, _file: &'static str) -> Result<()> {
+        Ok(())
+    }
 
     #[cfg(feature = "std")]
-    fn open_file(name: &'static str) -> File {
-        File::create(Path::new(&format!("{}/{}", TEST_DATA_BASE, name)[..])).unwrap()
+    fn open_file(name: &'static str) -> Result<File> {
+        let path = format!("{TEST_DATA_BASE}/{name}");
+        File::create(Path::new(path.as_str())).map_err(|_| Error::Generate)
     }
 
     #[test]
-    fn ean_13_as_svg() {
-        let ean13 = EAN13::new("750103131130").unwrap();
+    fn ean_13_as_svg() -> Result<()> {
+        let ean13 = EAN13::new("750103131130")?;
         let svg = SVG::new(80);
-        let generated = svg.generate(&ean13.encode()[..]).unwrap();
+        let generated = svg.generate(ean13.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "ean13.svg");
+            write_file(generated.as_str(), "ean13.svg")?;
         }
 
         assert_eq!(generated.len(), 2890);
+        Ok(())
     }
 
     #[test]
-    fn colored_ean_13_as_svg() {
-        let ean13 = EAN13::new("750103131130").unwrap();
+    fn colored_ean_13_as_svg() -> Result<()> {
+        let ean13 = EAN13::new("750103131130")?;
         let svg = SVG {
             height: 80,
             xdim: 1,
@@ -259,18 +273,19 @@ mod tests {
             },
             xmlns: None,
         };
-        let generated = svg.generate(&ean13.encode()[..]).unwrap();
+        let generated = svg.generate(ean13.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "ean13_colored.svg");
+            write_file(generated.as_str(), "ean13_colored.svg")?;
         }
 
         assert_eq!(generated.len(), 2890);
+        Ok(())
     }
 
     #[test]
-    fn colored_semi_transparent_ean_13_as_svg() {
-        let ean13 = EAN13::new("750103131130").unwrap();
+    fn colored_semi_transparent_ean_13_as_svg() -> Result<()> {
+        let ean13 = EAN13::new("750103131130")?;
         let svg = SVG {
             height: 70,
             xdim: 1,
@@ -282,96 +297,103 @@ mod tests {
             },
             xmlns: None,
         };
-        let generated = svg.generate(&ean13.encode()[..]).unwrap();
+        let generated = svg.generate(ean13.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "ean13_colored_semi_transparent.svg");
+            write_file(generated.as_str(), "ean13_colored_semi_transparent.svg")?;
         }
 
         assert_eq!(generated.len(), 3940);
+        Ok(())
     }
 
     #[test]
-    fn ean_8_as_svg() {
-        let ean8 = EAN8::new("9998823").unwrap();
+    fn ean_8_as_svg() -> Result<()> {
+        let ean8 = EAN8::new("9998823")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&ean8.encode()[..]).unwrap();
+        let generated = svg.generate(ean8.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "ean8.svg");
+            write_file(generated.as_str(), "ean8.svg")?;
         }
 
         assert_eq!(generated.len(), 1956);
+        Ok(())
     }
 
     #[test]
-    fn code39_as_svg() {
-        let code39 = Code39::new("IGOT99PROBLEMS").unwrap();
+    fn code39_as_svg() -> Result<()> {
+        let code39 = Code39::new("IGOT99PROBLEMS")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&code39.encode()[..]).unwrap();
+        let generated = svg.generate(code39.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "code39.svg");
+            write_file(generated.as_str(), "code39.svg")?;
         }
 
         assert_eq!(generated.len(), 6574);
+        Ok(())
     }
 
     #[test]
-    fn code93_as_svg() {
-        let code93 = Code93::new("IGOT99PROBLEMS").unwrap();
+    fn code93_as_svg() -> Result<()> {
+        let code93 = Code93::new("IGOT99PROBLEMS")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&code93.encode()[..]).unwrap();
+        let generated = svg.generate(code93.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "code93.svg");
+            write_file(generated.as_str(), "code93.svg")?;
         }
 
         assert_eq!(generated.len(), 4493);
+        Ok(())
     }
 
     #[test]
-    fn codabar_as_svg() {
-        let codabar = Codabar::new("A12----34A").unwrap();
+    fn codabar_as_svg() -> Result<()> {
+        let codabar = Codabar::new("A12----34A")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&codabar.encode()[..]).unwrap();
+        let generated = svg.generate(codabar.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "codabar.svg");
+            write_file(generated.as_str(), "codabar.svg")?;
         }
 
         assert_eq!(generated.len(), 2985);
+        Ok(())
     }
 
     #[test]
-    fn code128_as_svg() {
-        let code128 = Code128::new("ÀHIĆ345678").unwrap();
+    fn code128_as_svg() -> Result<()> {
+        let code128 = Code128::new("ÀHIĆ345678")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&code128.encode()[..]).unwrap();
+        let generated = svg.generate(code128.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "code128.svg");
+            write_file(generated.as_str(), "code128.svg")?;
         }
 
         assert_eq!(generated.len(), 2758);
+        Ok(())
     }
 
     #[test]
-    fn ean_2_as_svg() {
-        let ean2 = EANSUPP::new("78").unwrap();
+    fn ean_2_as_svg() -> Result<()> {
+        let ean2 = EANSUPP::new("78")?;
         let svg = SVG::new(80).xmlns("http://www.w3.org/2000/svg".to_string());
-        let generated = svg.generate(&ean2.encode()[..]).unwrap();
+        let generated = svg.generate(ean2.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "ean2.svg");
+            write_file(generated.as_str(), "ean2.svg")?;
         }
 
         assert_eq!(generated.len(), 760);
+        Ok(())
     }
 
     #[test]
-    fn itf_as_svg() {
-        let itf = TF::interleaved("1234123488993344556677118").unwrap();
+    fn itf_as_svg() -> Result<()> {
+        let itf = TF::interleaved("1234123488993344556677118")?;
         let svg = SVG {
             height: 80,
             xdim: 1,
@@ -379,18 +401,19 @@ mod tests {
             foreground: Color::white(),
             xmlns: None,
         };
-        let generated = svg.generate(&itf.encode()[..]).unwrap();
+        let generated = svg.generate(itf.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "itf.svg");
+            write_file(generated.as_str(), "itf.svg")?;
         }
 
         assert_eq!(generated.len(), 7123);
+        Ok(())
     }
 
     #[test]
-    fn code11_as_svg() {
-        let code11 = Code11::new("9988-45643201").unwrap();
+    fn code11_as_svg() -> Result<()> {
+        let code11 = Code11::new("9988-45643201")?;
         let svg = SVG {
             height: 80,
             xdim: 1,
@@ -398,12 +421,21 @@ mod tests {
             foreground: Color::white(),
             xmlns: None,
         };
-        let generated = svg.generate(&code11.encode()[..]).unwrap();
+        let generated = svg.generate(code11.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(&generated[..], "code11.svg");
+            write_file(generated.as_str(), "code11.svg")?;
         }
 
         assert_eq!(generated.len(), 4219);
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_dimension_overflow() -> Result<()> {
+        let generated = SVG::new(1).xdim(u32::MAX).generate([0, 1]);
+
+        assert!(matches!(generated, Err(Error::Dimension)));
+        Ok(())
     }
 }

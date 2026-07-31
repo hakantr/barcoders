@@ -10,7 +10,6 @@
 
 use crate::error::{Error, Result};
 use crate::sym::{Parse, helpers};
-use core::char;
 use core::ops::Range;
 use helpers::Vec;
 
@@ -99,15 +98,13 @@ impl EAN13 {
     /// Returns Result<EAN13, Error> indicating parse success.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EAN13> {
         let d = EAN13::parse(data.as_ref())?;
-        let digits: Vec<u8> = d
-            .chars()
-            .map(|c| c.to_digit(10).expect("Unknown character") as u8)
-            .collect();
+        let digits = helpers::parse_digits(d)?;
 
-        let ean13 = EAN13(digits[0..12].to_vec());
+        let ean13 = EAN13(digits.iter().copied().take(12).collect());
 
         // If checksum digit is provided, check the checksum.
-        if digits.len() == 13 && ean13.checksum_digit() != digits[12] {
+        let checksum = ean13.checksum_digit();
+        if digits.get(12).is_some_and(|provided| checksum != *provided) {
             return Err(Error::Checksum);
         }
 
@@ -116,11 +113,15 @@ impl EAN13 {
 
     /// Calculates the checksum digit using a modulo-10 weighting algorithm.
     fn checksum_digit(&self) -> u8 {
-        helpers::modulo_10_checksum(&self.0[..], true)
+        helpers::modulo_10_checksum(self.0.as_slice(), true)
     }
 
     fn number_system_digit(&self) -> u8 {
-        self.0[1]
+        helpers::invariant_or(
+            self.0.get(1).copied(),
+            0,
+            "EAN-13 sayı sistemi basamağı oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn number_system_encoding(&self) -> [u8; 7] {
@@ -132,26 +133,53 @@ impl EAN13 {
     }
 
     fn char_encoding(&self, side: usize, d: u8) -> [u8; 7] {
-        ENCODINGS[side][d as usize]
+        let encoding = ENCODINGS
+            .get(side)
+            .and_then(|encodings| encodings.get(usize::from(d)))
+            .copied();
+        helpers::invariant_or(
+            encoding,
+            [0; 7],
+            "EAN-13 kodlama dizini oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn left_digits(&self) -> &[u8] {
-        &self.0[2..7]
+        helpers::invariant_or(
+            self.0.get(2..7),
+            &[],
+            "EAN-13 sol basamakları oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn right_digits(&self) -> &[u8] {
-        &self.0[7..]
+        helpers::invariant_or(
+            self.0.get(7..),
+            &[],
+            "EAN-13 sağ basamakları oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn parity_mapping(&self) -> [usize; 5] {
-        PARITY[self.0[0] as usize]
+        let first_digit = helpers::invariant_or(
+            self.0.first().copied(),
+            0,
+            "EAN-13 ilk basamağı oluşturucuda doğrulanmış olmalıdır",
+        );
+        let parity = PARITY.get(usize::from(first_digit)).copied();
+        helpers::invariant_or(
+            parity,
+            [0; 5],
+            "EAN-13 eşlik düzeni doğrulanmış basamakla eşleşmelidir",
+        )
     }
 
     fn left_payload(&self) -> Vec<u8> {
+        let parity = self.parity_mapping();
         let slices: Vec<[u8; 7]> = self
             .left_digits()
             .iter()
-            .zip(self.parity_mapping().iter())
+            .zip(parity.iter())
             .map(|(d, s)| self.char_encoding(*s, *d))
             .collect();
 
@@ -171,17 +199,20 @@ impl EAN13 {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        helpers::join_slices(
-            &[
-                &LEFT_GUARD[..],
-                &self.number_system_encoding()[..],
-                &self.left_payload()[..],
-                &MIDDLE_GUARD[..],
-                &self.right_payload()[..],
-                &self.checksum_encoding()[..],
-                &RIGHT_GUARD[..],
-            ][..],
-        )
+        let number_system = self.number_system_encoding();
+        let left_payload = self.left_payload();
+        let right_payload = self.right_payload();
+        let checksum = self.checksum_encoding();
+
+        helpers::join_slices(&[
+            &LEFT_GUARD,
+            &number_system,
+            left_payload.as_slice(),
+            &MIDDLE_GUARD,
+            right_payload.as_slice(),
+            &checksum,
+            &RIGHT_GUARD,
+        ])
     }
 }
 
@@ -193,62 +224,68 @@ impl Parse for EAN13 {
 
     /// Returns the set of valid characters allowed in this type of barcode.
     fn valid_chars() -> Vec<char> {
-        (0..10).map(|i| char::from_digit(i, 10).unwrap()).collect()
+        helpers::decimal_chars()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::ean13::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn new_ean13() {
+    fn new_ean13() -> Result<()> {
         let ean13 = EAN13::new("123456123456");
 
         assert!(ean13.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn new_bookland() {
+    fn new_bookland() -> Result<()> {
         let bookland = Bookland::new("978456123456");
 
         assert!(bookland.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_ean13() {
+    fn invalid_data_ean13() -> Result<()> {
         let ean13 = EAN13::new("1234er123412");
 
-        assert_eq!(ean13.err().unwrap(), Error::Character)
+        assert!(matches!(ean13, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_len_ean13() {
+    fn invalid_len_ean13() -> Result<()> {
         let ean13 = EAN13::new("1111112222222333333");
 
-        assert_eq!(ean13.err().unwrap(), Error::Length)
+        assert!(matches!(ean13, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_checksum_ean13() {
+    fn invalid_checksum_ean13() -> Result<()> {
         let ean13 = EAN13::new("8801051294881");
 
-        assert_eq!(ean13.err().unwrap(), Error::Checksum)
+        assert!(matches!(ean13, Err(Error::Checksum)));
+        Ok(())
     }
 
     #[test]
-    fn ean13_encode_as_bookland() {
-        let bookland1 = Bookland::new("978345612345").unwrap(); // Check digit: 5
-        let bookland2 = Bookland::new("978118999561").unwrap(); // Check digit: 5
+    fn ean13_encode_as_bookland() -> Result<()> {
+        let bookland1 = Bookland::new("978345612345")?; // Check digit: 5
+        let bookland2 = Bookland::new("978118999561")?; // Check digit: 5
 
         assert_eq!(
             collapse_vec(bookland1.encode()),
@@ -258,12 +295,13 @@ mod tests {
             collapse_vec(bookland2.encode()),
             "10101110110001001011001100110010001001000101101010111010011101001001110101000011001101001110101"
         );
+        Ok(())
     }
 
     #[test]
-    fn ean13_encode() {
-        let ean131 = EAN13::new("750103131130").unwrap(); // Check digit: 5
-        let ean132 = EAN13::new("983465123499").unwrap(); // Check digit: 5
+    fn ean13_encode() -> Result<()> {
+        let ean131 = EAN13::new("750103131130")?; // Check digit: 5
+        let ean132 = EAN13::new("983465123499")?; // Check digit: 5
 
         assert_eq!(
             collapse_vec(ean131.encode()),
@@ -273,5 +311,6 @@ mod tests {
             collapse_vec(ean132.encode()),
             "10101101110100001001110101011110111001001100101010110110010000101011100111010011101001000010101"
         );
+        Ok(())
     }
 }

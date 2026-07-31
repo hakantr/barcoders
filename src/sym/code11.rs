@@ -45,40 +45,55 @@ impl Code11 {
         Code11::parse(data.as_ref()).map(|d| Code11(d.chars().collect()))
     }
 
-    fn char_encoding(&self, c: char) -> &[u8] {
-        match CHARS.iter().find(|&ch| ch.0 == c) {
-            Some(&(_, enc)) => enc,
-            None => panic!("Unknown char: {}", c),
-        }
+    fn char_encoding(&self, c: char) -> &'static [u8] {
+        let encoding = CHARS
+            .iter()
+            .find(|character| character.0 == c)
+            .map(|(_, encoding)| *encoding);
+        helpers::invariant_or(
+            encoding,
+            &[],
+            "Code11 iç verisindeki karakter oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     /// Calculates a checksum character using a weighted modulo-11 algorithm.
-    fn checksum_char(&self, data: &[char], weight_threshold: usize) -> Option<char> {
-        let get_char_pos = |&c| CHARS.iter().position(|t| t.0 == c).unwrap();
-        let weight = |i| match i % weight_threshold {
-            0 => weight_threshold,
-            n => n,
-        };
-        let positions = data.iter().map(&get_char_pos);
-        let index = positions
-            .rev()
-            .enumerate()
-            .fold(0, |acc, (i, pos)| acc + (weight(i + 1) * pos));
+    fn checksum_char(&self, data: &[char], weight_threshold: usize) -> char {
+        assert!(weight_threshold > 0, "Code11 sağlama ağırlığı sıfır olamaz");
+
+        let mut index = 0usize;
+        for (offset, character) in data.iter().rev().enumerate() {
+            let position = CHARS.iter().position(|candidate| candidate.0 == *character);
+            let position = helpers::invariant_or(
+                position,
+                0,
+                "Code11 sağlama hesabındaki karakter doğrulanmış olmalıdır",
+            );
+            let weight = (offset % weight_threshold) + 1;
+            index = (index + (weight * position)) % CHARS.len();
+        }
 
         // Some sources suggest that the C checksum should use modulo-11, whilst the K
         // checksum should use modulo-9. But most generators always use modulo-11.
         // This algorithm currently just uses 11 for both checksums, but can be easily
         // changed at a later date.
-        CHARS.get(index % CHARS.len()).map(|&(c, _)| c)
+        let character = CHARS
+            .get(index % CHARS.len())
+            .map(|(character, _)| *character);
+        helpers::invariant_or(
+            character,
+            '0',
+            "Code11 sağlama karakteri tablo sınırları içinde olmalıdır",
+        )
     }
 
     /// Calculates the C checksum character using a weighted modulo-11 algorithm.
-    fn c_checksum_char(&self) -> Option<char> {
+    fn c_checksum_char(&self) -> char {
         self.checksum_char(&self.0, 10)
     }
 
     /// Calculates the K checksum character using a weighted modulo-11 algorithm.
-    fn k_checksum_char(&self, c_checksum: char) -> Option<char> {
+    fn k_checksum_char(&self, c_checksum: char) -> char {
         let mut data: Vec<char> = self.0.clone();
         data.push(c_checksum);
 
@@ -92,7 +107,7 @@ impl Code11 {
 
     fn payload(&self) -> Vec<u8> {
         let mut enc = vec![];
-        let c_checksum = self.c_checksum_char().expect("Cannot compute checksum C");
+        let c_checksum = self.c_checksum_char();
 
         for &c in &self.0 {
             self.push_encoding(&mut enc, self.char_encoding(c));
@@ -102,9 +117,7 @@ impl Code11 {
 
         // K-checksum is only appended on barcodes greater than 10 characters.
         if self.0.len() > 10 {
-            let k_checksum = self
-                .k_checksum_char(c_checksum)
-                .expect("Cannot compute checksum K");
+            let k_checksum = self.k_checksum_char(c_checksum);
 
             self.push_encoding(&mut enc, self.char_encoding(k_checksum));
         }
@@ -115,9 +128,9 @@ impl Code11 {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of encoded binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        let guard = &GUARD[..];
+        let payload = self.payload();
 
-        helpers::join_slices(&[guard, &SEPARATOR, &self.payload()[..], guard][..])
+        helpers::join_slices(&[&GUARD, &SEPARATOR, payload.as_slice(), &GUARD])
     }
 }
 
@@ -137,36 +150,39 @@ impl Parse for Code11 {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::code11::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn invalid_length_code11() {
+    fn invalid_length_code11() -> Result<()> {
         let code11 = Code11::new("");
 
-        assert_eq!(code11.err().unwrap(), Error::Length);
+        assert!(matches!(code11, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_code11() {
+    fn invalid_data_code11() -> Result<()> {
         let code11 = Code11::new("NOTDIGITS");
 
-        assert_eq!(code11.err().unwrap(), Error::Character);
+        assert!(matches!(code11, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn code11_encode_less_than_10_chars() {
-        let code111 = Code11::new("123-45").unwrap();
-        let code112 = Code11::new("666").unwrap();
-        let code113 = Code11::new("12-9").unwrap();
+    fn code11_encode_less_than_10_chars() -> Result<()> {
+        let code111 = Code11::new("123-45")?;
+        let code112 = Code11::new("666")?;
+        let code113 = Code11::new("12-9")?;
 
         assert_eq!(
             collapse_vec(code111.encode()),
@@ -180,15 +196,17 @@ mod tests {
             collapse_vec(code113.encode()),
             "10110010110101101001011010110101101010100110101011001"
         );
+        Ok(())
     }
 
     #[test]
-    fn code11_encode_more_than_10_chars() {
-        let code111 = Code11::new("1234-5678-4321").unwrap();
+    fn code11_encode_more_than_10_chars() -> Result<()> {
+        let code111 = Code11::new("1234-5678-4321")?;
 
         assert_eq!(
             collapse_vec(code111.encode()),
             "101100101101011010010110110010101011011010110101101101010011010101001101101001010110101011011011001010100101101101011011011010100110101011001"
         );
+        Ok(())
     }
 }

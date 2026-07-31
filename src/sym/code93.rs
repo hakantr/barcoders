@@ -81,34 +81,50 @@ impl Code93 {
     }
 
     fn char_encoding(&self, c: char) -> [u8; 9] {
-        match CHARS.iter().find(|&ch| ch.0 == c) {
-            Some(&(_, enc)) => enc,
-            None => panic!("Unknown char: {}", c),
-        }
+        let encoding = CHARS
+            .iter()
+            .find(|candidate| candidate.0 == c)
+            .map(|(_, encoding)| *encoding);
+        helpers::invariant_or(
+            encoding,
+            [0; 9],
+            "Code93 iç verisindeki karakter oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     /// Calculates a checksum character using a weighted modulo-47 algorithm.
-    fn checksum_char(&self, data: &[char], weight_threshold: usize) -> Option<char> {
-        let get_char_pos = |&c| CHARS.iter().position(|t| t.0 == c).unwrap();
-        let weight = |i| match (data.len() - i) % weight_threshold {
-            0 => weight_threshold,
-            n => n,
-        };
-        let positions = data.iter().map(&get_char_pos);
-        let index = positions
-            .enumerate()
-            .fold(0, |acc, (i, pos)| acc + (weight(i) * pos));
+    fn checksum_char(&self, data: &[char], weight_threshold: usize) -> char {
+        assert!(weight_threshold > 0, "Code93 sağlama ağırlığı sıfır olamaz");
 
-        CHARS.get(index % CHARS.len()).map(|&(c, _)| c)
+        let mut index = 0usize;
+        for (offset, character) in data.iter().rev().enumerate() {
+            let position = CHARS.iter().position(|candidate| candidate.0 == *character);
+            let position = helpers::invariant_or(
+                position,
+                0,
+                "Code93 sağlama hesabındaki karakter doğrulanmış olmalıdır",
+            );
+            let weight = (offset % weight_threshold) + 1;
+            index = (index + (weight * position)) % CHARS.len();
+        }
+
+        let character = CHARS
+            .get(index % CHARS.len())
+            .map(|(character, _)| *character);
+        helpers::invariant_or(
+            character,
+            '0',
+            "Code93 sağlama karakteri tablo sınırları içinde olmalıdır",
+        )
     }
 
     /// Calculates the C checksum character using a weighted modulo-47 algorithm.
-    fn c_checksum_char(&self) -> Option<char> {
+    fn c_checksum_char(&self) -> char {
         self.checksum_char(&self.0, 20)
     }
 
     /// Calculates the K checksum character using a weighted modulo-47 algorithm.
-    fn k_checksum_char(&self, c_checksum: char) -> Option<char> {
+    fn k_checksum_char(&self, c_checksum: char) -> char {
         let mut data: Vec<char> = self.0.clone();
         data.push(c_checksum);
 
@@ -121,10 +137,8 @@ impl Code93 {
 
     fn payload(&self) -> Vec<u8> {
         let mut enc = vec![];
-        let c_checksum = self.c_checksum_char().expect("Cannot compute checksum C");
-        let k_checksum = self
-            .k_checksum_char(c_checksum)
-            .expect("Cannot compute checksum K");
+        let c_checksum = self.c_checksum_char();
+        let k_checksum = self.k_checksum_char(c_checksum);
 
         for &c in &self.0 {
             self.push_encoding(&mut enc, self.char_encoding(c));
@@ -140,10 +154,9 @@ impl Code93 {
     /// Encodes the barcode.
     /// Returns a Vec<u8> of encoded binary digits.
     pub fn encode(&self) -> Vec<u8> {
-        let guard = &GUARD[..];
-        let terminator = &TERMINATOR[..];
+        let payload = self.payload();
 
-        helpers::join_slices(&[guard, &self.payload()[..], guard, terminator][..])
+        helpers::join_slices(&[&GUARD, payload.as_slice(), &GUARD, &TERMINATOR])
     }
 }
 
@@ -163,38 +176,41 @@ impl Parse for Code93 {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::code93::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn invalid_length_code93() {
+    fn invalid_length_code93() -> Result<()> {
         let code93 = Code93::new("");
 
-        assert_eq!(code93.err().unwrap(), Error::Length);
+        assert!(matches!(code93, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_code93() {
+    fn invalid_data_code93() -> Result<()> {
         let code93 = Code93::new("lowerCASE");
 
-        assert_eq!(code93.err().unwrap(), Error::Character);
+        assert!(matches!(code93, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn code93_encode() {
+    fn code93_encode() -> Result<()> {
         // Tests for data longer than 15, data longer than 20
-        let code931 = Code93::new("TEST93").unwrap();
-        let code932 = Code93::new("FLAM").unwrap();
-        let code933 = Code93::new("99").unwrap();
-        let code934 = Code93::new("1111111111111111111111").unwrap();
+        let code931 = Code93::new("TEST93")?;
+        let code932 = Code93::new("FLAM")?;
+        let code933 = Code93::new("99")?;
+        let code934 = Code93::new("1111111111111111111111")?;
 
         assert_eq!(
             collapse_vec(code931.encode()),
@@ -212,5 +228,6 @@ mod tests {
             collapse_vec(code934.encode()),
             "1010111101010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001010010001000101101110010101010111101"
         );
+        Ok(())
     }
 }

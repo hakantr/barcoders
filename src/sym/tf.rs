@@ -10,7 +10,6 @@
 use crate::error::Result;
 use crate::sym::Parse;
 use crate::sym::helpers;
-use core::char;
 use core::ops::Range;
 use helpers::{Vec, vec};
 
@@ -27,13 +26,33 @@ const ITF_STOP: [u8; 4] = [1, 1, 0, 1];
 const STF_START: [u8; 8] = [1, 1, 0, 1, 1, 0, 1, 0];
 const STF_STOP: [u8; 8] = [1, 1, 0, 1, 0, 1, 1, 0];
 
+/// Doğrulanmış standart 2-of-5 verisi.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Standard(Vec<u8>);
+
+impl AsRef<[u8]> for Standard {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+/// Doğrulanmış aralıklı 2-of-5 verisi.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Interleaved(Vec<u8>);
+
+impl AsRef<[u8]> for Interleaved {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
 /// The 2-of-5 barcode type.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TF {
     /// The standard 2-of-5 barcode type.
-    Standard(Vec<u8>),
+    Standard(Standard),
     /// The interleaved 2-of-5 barcode type.
-    Interleaved(Vec<u8>),
+    Interleaved(Interleaved),
 }
 
 impl TF {
@@ -43,44 +62,37 @@ impl TF {
     ///
     /// Returns Result<TF::Interleaved, Error> indicating parse success.
     pub fn interleaved<T: AsRef<str>>(data: T) -> Result<TF> {
-        TF::parse(data.as_ref()).map(|d| {
-            let mut digits: Vec<u8> = d
-                .chars()
-                .map(|c| c.to_digit(10).expect("Unknown character") as u8)
-                .collect();
-            let checksum_required = digits.len() % 2 == 1;
+        let data = TF::parse(data.as_ref())?;
+        let mut digits = helpers::parse_digits(data)?;
+        let checksum_required = digits.len() % 2 == 1;
 
-            if checksum_required {
-                let check_digit = helpers::modulo_10_checksum(&digits[..], false);
-                digits.push(check_digit);
-            }
+        if checksum_required {
+            let check_digit = helpers::modulo_10_checksum(digits.as_slice(), false);
+            digits.push(check_digit);
+        }
 
-            TF::Interleaved(digits)
-        })
+        Ok(TF::Interleaved(Interleaved(digits)))
     }
 
     /// Creates a new STF barcode.
     ///
     /// Returns Result<TF::Standard, Error> indicating parse success.
     pub fn standard<T: AsRef<str>>(data: T) -> Result<TF> {
-        TF::parse(data.as_ref()).map(|d| {
-            let digits: Vec<u8> = d
-                .chars()
-                .map(|c| c.to_digit(10).expect("Unknown character") as u8)
-                .collect();
-            TF::Standard(digits)
-        })
+        let data = TF::parse(data.as_ref())?;
+        let digits = helpers::parse_digits(data)?;
+        Ok(TF::Standard(Standard(digits)))
     }
 
     fn raw_data(&self) -> &[u8] {
         match *self {
-            TF::Standard(ref d) | TF::Interleaved(ref d) => &d[..],
+            TF::Standard(ref data) => data.as_ref(),
+            TF::Interleaved(ref data) => data.as_ref(),
         }
     }
 
     fn interleave(&self, bars: u8, spaces: u8) -> Vec<u8> {
-        let bwidths = WIDTHS[bars as usize].chars();
-        let swidths = WIDTHS[spaces as usize].chars();
+        let bwidths = self.char_widths(bars).chars();
+        let swidths = self.char_widths(spaces).chars();
         let mut encoding: Vec<u8> = vec![];
 
         for (b, s) in bwidths.zip(swidths) {
@@ -109,7 +121,11 @@ impl TF {
     }
 
     fn char_widths(&self, d: u8) -> &'static str {
-        WIDTHS[d as usize]
+        helpers::invariant_or(
+            WIDTHS.get(usize::from(d)).copied(),
+            "",
+            "2-of-5 basamağı oluşturucuda doğrulanmış olmalıdır",
+        )
     }
 
     fn stf_payload(&self) -> Vec<u8> {
@@ -123,11 +139,26 @@ impl TF {
     }
 
     fn itf_payload(&self) -> Vec<u8> {
-        let weaves: Vec<Vec<u8>> = self
-            .raw_data()
-            .chunks(2)
-            .map(|c| self.interleave(c[0], c[1]))
-            .collect();
+        assert!(
+            self.raw_data().len().is_multiple_of(2),
+            "Aralıklı 2-of-5 iç verisi çift sayıda basamak taşımalıdır"
+        );
+        let mut weaves = Vec::new();
+
+        for chunk in self.raw_data().chunks(2) {
+            let mut digits = chunk.iter().copied();
+            let bars = helpers::invariant_or(
+                digits.next(),
+                0,
+                "Aralıklı 2-of-5 çubuk basamağı oluşturucuda doğrulanmış olmalıdır",
+            );
+            let spaces = helpers::invariant_or(
+                digits.next(),
+                0,
+                "Aralıklı 2-of-5 boşluk basamağı oluşturucuda doğrulanmış olmalıdır",
+            );
+            weaves.push(self.interleave(bars, spaces));
+        }
 
         helpers::join_iters(weaves.iter())
     }
@@ -137,10 +168,12 @@ impl TF {
     pub fn encode(&self) -> Vec<u8> {
         match *self {
             TF::Standard(_) => {
-                helpers::join_slices(&[&STF_START[..], &self.stf_payload()[..], &STF_STOP[..]][..])
+                let payload = self.stf_payload();
+                helpers::join_slices(&[&STF_START, payload.as_slice(), &STF_STOP])
             }
             TF::Interleaved(_) => {
-                helpers::join_slices(&[&ITF_START[..], &self.itf_payload()[..], &ITF_STOP[..]][..])
+                let payload = self.itf_payload();
+                helpers::join_slices(&[&ITF_START, payload.as_slice(), &ITF_STOP])
             }
         }
     }
@@ -155,73 +188,81 @@ impl Parse for TF {
 
     /// Returns the set of valid characters allowed in this type of barcode.
     fn valid_chars() -> Vec<char> {
-        (0..10).map(|i| char::from_digit(i, 10).unwrap()).collect()
+        helpers::decimal_chars()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::tf::*;
     #[cfg(not(feature = "std"))]
     pub(crate) use alloc::string::{String, ToString};
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn new_itf() {
+    fn new_itf() -> Result<()> {
         let itf = TF::interleaved("12345679");
 
         assert!(itf.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn new_stf() {
+    fn new_stf() -> Result<()> {
         let stf = TF::standard("12345");
 
         assert!(stf.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_itf() {
+    fn invalid_data_itf() -> Result<()> {
         let itf = TF::interleaved("1234er123412");
 
-        assert_eq!(itf.err().unwrap(), Error::Character);
+        assert!(matches!(itf, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_stf() {
+    fn invalid_data_stf() -> Result<()> {
         let stf = TF::standard("WORDUP");
 
-        assert_eq!(stf.err().unwrap(), Error::Character);
+        assert!(matches!(stf, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn itf_raw_data() {
-        let itf = TF::interleaved("12345679").unwrap();
+    fn itf_raw_data() -> Result<()> {
+        let itf = TF::interleaved("12345679")?;
 
         assert_eq!(itf.raw_data(), &[1, 2, 3, 4, 5, 6, 7, 9]);
+        Ok(())
     }
 
     #[test]
-    fn itf_encode() {
-        let itf = TF::interleaved("1234567").unwrap(); // Check digit: 0
+    fn itf_encode() -> Result<()> {
+        let itf = TF::interleaved("1234567")?; // Check digit: 0
 
         assert_eq!(
             collapse_vec(itf.encode()),
             "10101110100010101110001110111010001010001110100011100010101010100011100011101101"
                 .to_string()
         );
+        Ok(())
     }
 
     #[test]
-    fn stf_encode() {
-        let stf = TF::standard("1234567").unwrap();
+    fn stf_encode() -> Result<()> {
+        let stf = TF::standard("1234567")?;
 
         assert_eq!(collapse_vec(stf.encode()), "110110101110101010111010111010101110111011101010101010111010111011101011101010101110111010101010101110111011010110".to_string());
+        Ok(())
     }
 }

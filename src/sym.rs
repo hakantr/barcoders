@@ -7,8 +7,11 @@
 //! ```rust
 //! use barcoders::sym::ean13::*;
 //!
-//! let barcode = EAN13::new("750103131130").unwrap();
+//! # fn main() -> barcoders::error::Result<()> {
+//! let barcode = EAN13::new("750103131130")?;
 //! let encoded = barcode.encode();
+//! # Ok(())
+//! # }
 //! ```
 //! Each encoder accepts a `String` to be encoded. Valid data is barcode-specific and thus
 //! constructors return an Option<T>.
@@ -38,7 +41,7 @@ trait Parse {
     fn parse(data: &str) -> Result<&str, Error> {
         let valid_chars = Self::valid_chars();
         let valid_len = Self::valid_len();
-        let data_len = data.len() as u32;
+        let data_len = u32::try_from(data.len()).map_err(|_| Error::Length)?;
 
         if data_len < valid_len.start || data_len > valid_len.end {
             return Err(Error::Length);

@@ -5,7 +5,8 @@
 //! You will pretty much never need to turn this feature on unless you are adding new functionality
 //! or running the test suite.
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::generators::validate_barcode;
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::iter::repeat_n;
@@ -38,22 +39,31 @@ impl ASCII {
         }
     }
 
-    fn generate_row(&self, barcode: &[u8]) -> String {
-        barcode
-            .iter()
-            .flat_map(|&d| repeat_n(CHARS[d as usize], self.xdim))
-            .collect()
+    fn generate_row(&self, barcode: &[u8]) -> Result<String> {
+        let mut row = String::new();
+
+        for &digit in barcode {
+            let character = CHARS
+                .get(usize::from(digit))
+                .copied()
+                .ok_or(Error::InvalidEncoding)?;
+            row.extend(repeat_n(character, self.xdim));
+        }
+
+        Ok(row)
     }
 
     /// Generates the given barcode. Returns a `Result<String, Error>` indicating success.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let mut output = String::new();
-        let row = self.generate_row(barcode.as_ref());
+        let barcode = barcode.as_ref();
+        validate_barcode(barcode)?;
+        let row = self.generate_row(barcode)?;
 
         for (i, _l) in (0..self.height).enumerate() {
-            output.push_str(&row[..]);
+            output.push_str(row.as_str());
 
-            if i < self.height - 1 {
+            if i < self.height.saturating_sub(1) {
                 output.push('\n');
             }
         }
@@ -64,6 +74,7 @@ impl ASCII {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::{Error, Result};
     use crate::generators::ascii::*;
     use crate::sym::codabar::*;
     use crate::sym::code11::*;
@@ -76,10 +87,10 @@ mod tests {
     use crate::sym::tf::*;
 
     #[test]
-    fn ean_13_as_ascii() {
-        let ean13 = EAN13::new("750103131130").unwrap();
+    fn ean_13_as_ascii() -> Result<()> {
+        let ean13 = EAN13::new("750103131130")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&ean13.encode()[..]).unwrap();
+        let generated = ascii.generate(ean13.encode())?;
 
         assert_eq!(
             generated,
@@ -97,13 +108,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn ean_13_as_ascii_small_height_double_width() {
-        let ean13 = EAN13::new("750103131130").unwrap();
+    fn ean_13_as_ascii_small_height_double_width() -> Result<()> {
+        let ean13 = EAN13::new("750103131130")?;
         let ascii = ASCII { height: 6, xdim: 2 };
-        let generated = ascii.generate(&ean13.encode()[..]).unwrap();
+        let generated = ascii.generate(ean13.encode())?;
 
         assert_eq!(generated,
 "
@@ -114,13 +126,14 @@ mod tests {
 ##  ##  ####      ##  ##    ######    ####    ##  ##    ######  ########  ##  ####    ####  ##  ##  ##        ##  ####    ####  ####    ####  ##        ##  ######    ##  ######  ##    ##  ##
 ##  ##  ####      ##  ##    ######    ####    ##  ##    ######  ########  ##  ####    ####  ##  ##  ##        ##  ####    ####  ####    ####  ##        ##  ######    ##  ######  ##    ##  ##
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn ean_8_as_ascii() {
-        let ean8 = EAN8::new("1234567").unwrap();
+    fn ean_8_as_ascii() -> Result<()> {
+        let ean8 = EAN8::new("1234567")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&ean8.encode()[..]).unwrap();
+        let generated = ascii.generate(ean8.encode())?;
 
         assert_eq!(
             generated,
@@ -138,13 +151,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn ean_8_as_ascii_small_height_double_width() {
-        let ean8 = EAN8::new("1234567").unwrap();
+    fn ean_8_as_ascii_small_height_double_width() -> Result<()> {
+        let ean8 = EAN8::new("1234567")?;
         let ascii = ASCII { height: 5, xdim: 2 };
-        let generated = ascii.generate(&ean8.encode()[..]).unwrap();
+        let generated = ascii.generate(ean8.encode())?;
 
         assert_eq!(generated,
 "
@@ -154,13 +168,14 @@ mod tests {
 ##  ##    ####    ##    ##    ####  ########  ##  ##      ####  ##  ##  ##    ######  ##  ##        ##      ##    ######    ##  ##  ##
 ##  ##    ####    ##    ##    ####  ########  ##  ##      ####  ##  ##  ##    ######  ##  ##        ##      ##    ######    ##  ##  ##
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn code_39_as_ascii() {
-        let code39 = Code39::new("TEST8052").unwrap();
+    fn code_39_as_ascii() -> Result<()> {
+        let code39 = Code39::new("TEST8052")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&code39.encode()[..]).unwrap();
+        let generated = ascii.generate(code39.encode())?;
 
         assert_eq!(generated,
 "
@@ -175,13 +190,14 @@ mod tests {
 #  # ## ## # # # ## ##  # ## # ##  # # # ## # ##  # # # ## ##  # ## #  # ## # # #  ## ## # ## #  ## # # # ##  # # ## #  # ## ## #
 #  # ## ## # # # ## ##  # ## # ##  # # # ## # ##  # # # ## ##  # ## #  # ## # # #  ## ## # ## #  ## # # # ##  # # ## #  # ## ## #
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn code_39_as_ascii_small_height_double_weight() {
-        let code39 = Code39::new("1234").unwrap();
+    fn code_39_as_ascii_small_height_double_weight() -> Result<()> {
+        let code39 = Code39::new("1234")?;
         let ascii = ASCII { height: 7, xdim: 2 };
-        let generated = ascii.generate(&code39.encode()[..]).unwrap();
+        let generated = ascii.generate(code39.encode())?;
 
         assert_eq!(generated,
 "
@@ -193,13 +209,14 @@ mod tests {
 ##    ##  ####  ####  ##  ####  ##    ##  ##  ####  ##  ####    ##  ##  ####  ####  ####    ##  ##  ##  ##  ##    ####  ##  ####  ##    ##  ####  ####  ##
 ##    ##  ####  ####  ##  ####  ##    ##  ##  ####  ##  ####    ##  ##  ####  ####  ####    ##  ##  ##  ##  ##    ####  ##  ####  ##    ##  ####  ####  ##
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn codabar_as_ascii() {
-        let codabar = Codabar::new("A98B").unwrap();
+    fn codabar_as_ascii() -> Result<()> {
+        let codabar = Codabar::new("A98B")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&codabar.encode()[..]).unwrap();
+        let generated = ascii.generate(codabar.encode())?;
 
         assert_eq!(
             generated,
@@ -217,13 +234,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn codabar_as_ascii_small_height_double_weight() {
-        let codabar = Codabar::new("A40156B").unwrap();
+    fn codabar_as_ascii_small_height_double_weight() -> Result<()> {
+        let codabar = Codabar::new("A40156B")?;
         let ascii = ASCII { height: 7, xdim: 2 };
-        let generated = ascii.generate(&codabar.encode()[..]).unwrap();
+        let generated = ascii.generate(codabar.encode())?;
 
         assert_eq!(generated,
 "
@@ -235,13 +253,14 @@ mod tests {
 ##  ####    ##    ##  ##  ####  ##    ##  ##  ##  ##    ####  ##  ##  ####    ##  ####  ##  ##    ##  ##    ##  ##  ####  ##  ##    ##    ####
 ##  ####    ##    ##  ##  ####  ##    ##  ##  ##  ##    ####  ##  ##  ####    ##  ####  ##  ##    ##  ##    ##  ##  ####  ##  ##    ##    ####
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn code_128_as_ascii() {
-        let code128 = Code128::new("ÀHELLO").unwrap();
+    fn code_128_as_ascii() -> Result<()> {
+        let code128 = Code128::new("ÀHELLO")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&code128.encode()[..]).unwrap();
+        let generated = ascii.generate(code128.encode())?;
 
         assert_eq!(
             generated,
@@ -259,13 +278,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn code_128_as_ascii_small_height_double_weight() {
-        let code128 = Code128::new("ÀHELLO").unwrap();
+    fn code_128_as_ascii_small_height_double_weight() -> Result<()> {
+        let code128 = Code128::new("ÀHELLO")?;
         let ascii = ASCII { height: 7, xdim: 2 };
-        let generated = ascii.generate(&code128.encode()[..]).unwrap();
+        let generated = ascii.generate(code128.encode())?;
 
         assert_eq!(generated,
 "
@@ -277,13 +297,14 @@ mod tests {
 ####  ##        ##    ####      ##  ##      ##      ####  ##      ##      ####  ######  ##      ####  ######  ##      ######  ####  ####  ##      ##      ####      ######  ##  ####
 ####  ##        ##    ####      ##  ##      ##      ####  ##      ##      ####  ######  ##      ####  ######  ##      ######  ####  ####  ##      ##      ####      ######  ##  ####
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn ean2_as_ascii() {
-        let ean2 = EANSUPP::new("34").unwrap();
+    fn ean2_as_ascii() -> Result<()> {
+        let ean2 = EANSUPP::new("34")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&ean2.encode()[..]).unwrap();
+        let generated = ascii.generate(ean2.encode())?;
 
         assert_eq!(
             generated,
@@ -301,13 +322,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn ean5_as_ascii() {
-        let ean5 = EANSUPP::new("50799").unwrap();
+    fn ean5_as_ascii() -> Result<()> {
+        let ean5 = EANSUPP::new("50799")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&ean5.encode()[..]).unwrap();
+        let generated = ascii.generate(ean5.encode())?;
 
         assert_eq!(
             generated,
@@ -325,13 +347,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn itf_as_ascii() {
-        let itf = TF::interleaved("12345").unwrap();
+    fn itf_as_ascii() -> Result<()> {
+        let itf = TF::interleaved("12345")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&itf.encode()[..]).unwrap();
+        let generated = ascii.generate(itf.encode())?;
 
         assert_eq!(
             generated,
@@ -349,13 +372,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn code_93_as_ascii() {
-        let code93 = Code93::new("TEST93").unwrap();
+    fn code_93_as_ascii() -> Result<()> {
+        let code93 = Code93::new("TEST93")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&code93.encode()[..]).unwrap();
+        let generated = ascii.generate(code93.encode())?;
 
         assert_eq!(
             generated,
@@ -373,13 +397,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
     }
 
     #[test]
-    fn code_93_as_ascii_small_height_double_weight() {
-        let code93 = Code93::new("TEST93").unwrap();
+    fn code_93_as_ascii_small_height_double_weight() -> Result<()> {
+        let code93 = Code93::new("TEST93")?;
         let ascii = ASCII { height: 7, xdim: 2 };
-        let generated = ascii.generate(&code93.encode()[..]).unwrap();
+        let generated = ascii.generate(code93.encode())?;
 
         assert_eq!(generated,
 "
@@ -391,13 +416,14 @@ mod tests {
 ##  ##  ########  ####  ##    ####  ####    ##    ##  ####  ##  ####    ####  ##    ####  ##        ##  ##  ##  ##        ##  ##  ######  ####  ##    ##      ##  ##  ##  ########  ##
 ##  ##  ########  ####  ##    ####  ####    ##    ##  ####  ##  ####    ####  ##    ####  ##        ##  ##  ##  ##        ##  ##  ######  ####  ##    ##      ##  ##  ##  ########  ##
 ".trim());
+        Ok(())
     }
 
     #[test]
-    fn code_11_as_ascii() {
-        let code11 = Code11::new("12-9").unwrap();
+    fn code_11_as_ascii() -> Result<()> {
+        let code11 = Code11::new("12-9")?;
         let ascii = ASCII::new();
-        let generated = ascii.generate(&code11.encode()[..]).unwrap();
+        let generated = ascii.generate(code11.encode())?;
 
         assert_eq!(
             generated,
@@ -415,5 +441,14 @@ mod tests {
 "
             .trim()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_non_binary_encoding() -> Result<()> {
+        let generated = ASCII::new().generate([0, 2, 1]);
+
+        assert!(matches!(generated, Err(Error::InvalidEncoding)));
+        Ok(())
     }
 }

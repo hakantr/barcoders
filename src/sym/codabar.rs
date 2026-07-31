@@ -8,7 +8,7 @@
 //! the industry.
 
 use super::helpers::{Vec, vec};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::sym::Parse;
 use core::ops::Range;
 
@@ -98,7 +98,10 @@ impl Codabar {
     /// Returns Result<Codabar, Error> indicating parse success.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Codabar> {
         let d = Codabar::parse(data.as_ref())?;
-        let units = d.chars().map(|c| Unit::from_char(c).unwrap()).collect();
+        let units = d
+            .chars()
+            .map(|character| Unit::from_char(character).ok_or(Error::Character))
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Codabar(units))
     }
@@ -111,7 +114,7 @@ impl Codabar {
         for (i, u) in self.0.iter().enumerate() {
             enc.extend(u.lookup().iter().cloned());
 
-            if i < self.0.len() - 1 {
+            if i < self.0.len().saturating_sub(1) {
                 enc.push(0);
             }
         }
@@ -138,35 +141,38 @@ impl Parse for Codabar {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
+    use crate::error::{Error, Result};
     use crate::sym::codabar::*;
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use core::char;
 
     fn collapse_vec(v: Vec<u8>) -> String {
-        let chars = v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap());
-        chars.collect()
+        v.iter()
+            .filter_map(|digit| char::from_digit(u32::from(*digit), 10))
+            .collect()
     }
 
     #[test]
-    fn invalid_length_codabar() {
+    fn invalid_length_codabar() -> Result<()> {
         let codabar = Codabar::new("");
 
-        assert_eq!(codabar.err().unwrap(), Error::Length);
+        assert!(matches!(codabar, Err(Error::Length)));
+        Ok(())
     }
 
     #[test]
-    fn invalid_data_codabar() {
+    fn invalid_data_codabar() -> Result<()> {
         let codabar = Codabar::new("A12345G");
 
-        assert_eq!(codabar.err().unwrap(), Error::Character);
+        assert!(matches!(codabar, Err(Error::Character)));
+        Ok(())
     }
 
     #[test]
-    fn codabar_encode() {
-        let codabar_a = Codabar::new("A1234B").unwrap();
-        let codabar_b = Codabar::new("A40156B").unwrap();
+    fn codabar_encode() -> Result<()> {
+        let codabar_a = Codabar::new("A1234B")?;
+        let codabar_b = Codabar::new("A40156B")?;
 
         assert_eq!(
             collapse_vec(codabar_a.encode()),
@@ -176,5 +182,6 @@ mod tests {
             collapse_vec(codabar_b.encode()),
             "10110010010101101001010101001101010110010110101001010010101101010010011"
         );
+        Ok(())
     }
 }
