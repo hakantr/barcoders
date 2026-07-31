@@ -1,7 +1,12 @@
-*- REFACTOR: Remove qualifiers from namespaced constants: CODE39_CHARS -> CHARS.
-*- FEATURE: Code11 symbology
-*.- PERFORMANCE: If checksum_char functions were private, it would allow for them to return the encoding instead of the char and thus the extra lookup to char_encoding would be able to be skipped (see Code39, etc)
-*  - REFACTOR: Perhaps make them all private and behave the same? (code128 returns u8, code39 returns char. wtf?)
-*- REFACTOR: Fix monstrosity in place_pixels in image generator. (Potentially write a simple macro?)
-- PERFORMANCE: If user doesn't set image color, default to Luma8 instead of Rgba8 to save bytes.
-- REFACTOR: Implement simple regex into Parse and remove valid_chars, valid_length, etc.
+- YENİDEN DÜZENLEME: Ad alanlı sabitlerdeki niteleyicileri kaldır: `CODE39_CHARS` -> `CHARS`.
+- ÖZELLİK: Code11 sembolojisi.
+- PERFORMANS: `checksum_char` işlevleri özel olursa karakter yerine doğrudan kodlamayı döndürebilir;
+  böylece `char_encoding` için ek arama atlanabilir (Code39 ve benzerlerine bakın).
+  - YENİDEN DÜZENLEME: Bu işlevlerin tümünü özel yapıp aynı biçimde çalıştırmayı değerlendir
+    (`code128` `u8`, `code39` `char` döndürüyor).
+- YENİDEN DÜZENLEME: Görüntü üretecindeki `place_pixels` işlevini sadeleştir; basit bir makro
+  kullanmayı değerlendir.
+- PERFORMANS: Kullanıcı görüntü rengini ayarlamazsa bayt tasarrufu için varsayılan olarak `Rgba8`
+  yerine `Luma8` kullan.
+- YENİDEN DÜZENLEME: `Parse` içine basit bir düzenli ifade uygulayıp `valid_chars`, `valid_length`
+  ve benzeri yardımcıları kaldır.

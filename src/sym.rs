@@ -1,8 +1,9 @@
-//! Supported barcode symbologies.
+//! Desteklenen barkod sembolojileri.
 //!
-//! Symbologies are separated into logical modules and thus you must `use` the appropriate one(s).
+//! Sembolojiler mantıksal modüllere ayrılmıştır; bu nedenle gerekli modülleri `use` ile kapsamınıza
+//! almalısınız.
 //!
-//! For example:
+//! Örneğin:
 //!
 //! ```rust
 //! use barcoders::sym::ean13::*;
@@ -13,8 +14,8 @@
 //! # Ok(())
 //! # }
 //! ```
-//! Each encoder accepts a `String` to be encoded. Valid data is barcode-specific and thus
-//! constructors return an Option<T>.
+//! Her kodlayıcı, kodlanacak metni kabul eder. Geçerli veri barkod türüne göre değiştiğinden
+//! kurucular `Result<T, Error>` döndürür.
 
 pub mod codabar;
 pub mod code11;

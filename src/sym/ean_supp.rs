@@ -1,10 +1,10 @@
-//! Encoders for supplemental 2-digit and 5-digit EAN barcodes.
+//! İki ve beş basamaklı ek EAN barkodlarını kodlayan bileşenler.
 //!
-//! EAN-2 barcodes are used in magazines and newspapers to indicate issue number.
+//! EAN-2 barkodları dergi ve gazetelerde sayı numarasını belirtmek için kullanılır.
 //!
-//! EAN-5 barcodes are often used to indicate the suggested retail price of books.
+//! EAN-5 barkodları çoğunlukla kitapların önerilen perakende fiyatını belirtir.
 //!
-//! These supplemental barcodes never appear without a full EAN-13 barcode alongside them.
+//! Bu ek barkodlar yanlarında tam bir EAN-13 barkodu olmadan kullanılmaz.
 
 use crate::error::{Error, Result};
 use crate::sym::ean13::ENCODINGS;
@@ -14,7 +14,7 @@ use helpers::{Vec, vec};
 
 const LEFT_GUARD: [u8; 4] = [1, 0, 1, 1];
 
-/// Maps parity (odd/even) for the EAN-5 barcodes based on the check digit.
+/// EAN-5 barkodlarının eşliğini (tek/çift), sağlama basamağına göre eşler.
 const EAN5_PARITY: [[usize; 5]; 10] = [
     [1, 1, 0, 0, 0],
     [1, 0, 1, 0, 0],
@@ -28,7 +28,7 @@ const EAN5_PARITY: [[usize; 5]; 10] = [
     [0, 0, 1, 0, 1],
 ];
 
-/// Maps parity (odd/even) for the EAN-2 barcodes based on the check digit.
+/// EAN-2 barkodlarının eşliğini (tek/çift), sağlama basamağına göre eşler.
 const EAN2_PARITY: [[usize; 5]; 4] = [
     [0, 0, 0, 0, 0],
     [0, 1, 0, 0, 0],
@@ -56,20 +56,19 @@ impl AsRef<[u8]> for EAN5 {
     }
 }
 
-/// The Supplemental EAN barcode type.
+/// Ek EAN barkod türü.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EANSUPP {
-    /// EAN-2 supplemental barcode type.
+    /// Ek EAN-2 barkod türü.
     EAN2(EAN2),
-    /// EAN-5 supplemental barcode type.
+    /// Ek EAN-5 barkod türü.
     EAN5(EAN5),
 }
 
 impl EANSUPP {
-    /// Creates a new barcode.
-    /// Returns Result<EANSUPP, Error> indicating parse success.
-    /// Either a EAN2 or EAN5 variant will be returned depending on
-    /// the length of `data`.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<EANSUPP, Error>` olarak döndürür.
+    /// `data` uzunluğuna göre `EAN2` veya `EAN5` varyantını döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EANSUPP> {
         EANSUPP::parse(data.as_ref()).and_then(|d| {
             let digits = helpers::parse_digits(d)?;
@@ -103,8 +102,8 @@ impl EANSUPP {
         )
     }
 
-    /// Calculates the checksum digit using a modified modulo-10 weighting
-    /// algorithm. This only makes sense for EAN5 barcodes.
+    /// Değiştirilmiş modülo-10 ağırlıklandırma algoritmasıyla sağlama basamağını hesaplar.
+    /// Bu işlem yalnızca EAN-5 barkodları için anlamlıdır.
     fn checksum_digit(&self) -> u8 {
         let mut odds = 0u16;
         let mut evens = 0u16;
@@ -170,8 +169,8 @@ impl EANSUPP {
         p
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let payload = self.payload();
         helpers::join_slices(&[&LEFT_GUARD, payload.as_slice()])
@@ -179,12 +178,12 @@ impl EANSUPP {
 }
 
 impl Parse for EANSUPP {
-    /// Returns the valid length of data acceptable in this type of barcode.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     fn valid_len() -> Range<u32> {
         2..5
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         helpers::decimal_chars()
     }

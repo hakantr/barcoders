@@ -1,46 +1,47 @@
 //! # Barcoders
-//! Barcoders allows you to encode valid data for a chosen barcode symbology into a ```Vec<u8>``` representation
-//! of the underlying binary structure. From here, you can take advantage one of optional builtin generators
-//! (for exporting to GIF, PNG, etc) or build your own.
+//! Barcoders, seçilen barkod sembolojisine uygun veriyi temel ikili yapıyı temsil eden bir
+//! `Vec<u8>` değerine kodlamanızı sağlar. Ardından isteğe bağlı yerleşik üreteçlerden birini
+//! (GIF veya PNG dışa aktarımı gibi) kullanabilir ya da kendi üretecinizi oluşturabilirsiniz.
 //!
-//! ## Current Support
+//! ## Güncel destek
 //!
-//! The ultimate goal of Barcoders is to provide encoding support for all major (and many not-so-major) symbologies.
+//! Barcoders'ın nihai amacı, yaygın sembolojilerin tümünü ve daha az kullanılanların çoğunu
+//! kodlayabilmektir.
 //!
-//! ### Symbologies
+//! ### Sembolojiler
 //!
 //! * EAN-13
 //!   * JAN
 //!   * Bookland
 //! * UPC-A
 //! * EAN-8
-//! * EAN Supplementals
+//! * Ek EAN barkodları
 //!   * EAN-2
 //!   * EAN-5
 //! * Code39
 //! * Code128
-//! * Two-Of-Five
-//!   * Interleaved (ITF)
-//!   * Standard (STF)
+//! * 2-of-5
+//!   * Aralıklı (ITF)
+//!   * Standart (STF)
 //! * Codabar
-//! * More coming!
+//! * Yeni türler eklenecek
 //!
-//! ### Generators
+//! ### Üreteçler
 //!
-//! Each generator is defined as an optional "feature" that must be opted-into in order for it's
-//! functionality to be compiled into your app.
+//! Her üreteç isteğe bağlı bir özellik olarak tanımlanır. İşlevinin uygulamanıza derlenmesi için
+//! ilgili özelliği açıkça etkinleştirmeniz gerekir.
 //!
-//! * ASCII (feature: `ascii`)
-//! * JSON (feature: `json`)
-//! * SVG (feature: `svg`)
-//! * PNG (feature: `image`)
-//! * GIF (feature: `image`)
-//! * WEBP (feature: `image`)
-//! * Or add your own
+//! * ASCII (özellik: `ascii`)
+//! * JSON (özellik: `json`)
+//! * SVG (özellik: `svg`)
+//! * PNG (özellik: `image`)
+//! * GIF (özellik: `image`)
+//! * WEBP (özellik: `image`)
+//! * Kendi üreteciniz
 //!
-//! ## Examples
+//! ## Örnekler
 //!
-//! See the Github repository.
+//! GitHub deposundaki örneklere bakın.
 
 #![warn(
     missing_docs,

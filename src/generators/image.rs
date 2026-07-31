@@ -1,25 +1,25 @@
-//! Functionality for generating image representations of barcodes.
+//! Barkodların görüntü gösterimlerini üretme işlevleri.
 //!
-//! Each enum variant can be constructed via the standard constructor pattern
-//! or via a constructor method if you want default values.
+//! Her enum varyantı standart yapı kurma söz dizimiyle ya da varsayılan değerler isteniyorsa bir
+//! kurucu metotla oluşturulabilir.
 //!
-//! For example:
+//! Örneğin:
 //!
 //! ```rust
 //! use barcoders::generators::image::*;
 //!
-//! // Specify your own struct fields.
+//! // Yapı alanlarını kendiniz belirtin.
 //! let png = Image::PNG{height: 80,
 //!                      xdim: 1,
 //!                      rotation: Rotation::Zero,
 //!                      foreground: Color::new([0, 0, 0, 255]),
 //!                      background: Color::new([255, 255, 255, 255])};
 //!
-//! // Or use the constructor for defaults (you must specify the height).
+//! // Ya da varsayılanlar için kurucuyu kullanın (yüksekliği belirtmeniz gerekir).
 //! let png = Image::png(100);
 //! ```
 //!
-//! See the README for more examples.
+//! Daha fazla örnek için README belgesine bakın.
 
 use crate::error::{Error, Result};
 use crate::generators::validate_barcode;
@@ -31,22 +31,22 @@ use std::io::Cursor;
 
 macro_rules! image_variants {
     ( $( #[$attr:meta] $v:ident ),* ) => {
-        /// The image generator type.
+        /// Görüntü üreteci türü.
         #[derive(Copy, Clone, Debug)]
         pub enum Image {
         $(
             #[$attr]
             $v {
-                /// The height of the barcode in pixels.
+                /// Barkodun piksel cinsinden yüksekliği.
                 height: u32,
-                /// The X dimension. Specifies the width of the "narrow" bars, each
-                /// of which will be ```self.xdim``` pixels wide.
+                /// X boyutu; her biri `self.xdim` piksel genişliğinde olan "dar"
+                /// çubukların genişliğini belirler.
                 xdim: u32,
-                /// The rotation to apply to the generated barcode.
+                /// Üretilen barkoda uygulanacak döndürme.
                 rotation: Rotation,
-                /// The RGBA color for the foreground.
+                /// Ön planın RGBA rengi.
                 foreground: Color,
-                /// The RGBA color for the background.
+                /// Arka planın RGBA rengi.
                 background: Color,
             },
         )*
@@ -80,25 +80,25 @@ macro_rules! expand_image_variants {
     );
 }
 
-/// Represents a RGBA color for the barcode foreground and background.
+/// Barkodun ön ve arka planında kullanılan bir RGBA rengini temsil eder.
 #[derive(Copy, Clone, Debug)]
 pub struct Color {
-    /// Reg, Green, Blue, Alpha value.
+    /// Kırmızı, yeşil, mavi ve alfa değeri.
     rgba: [u8; 4],
 }
 
 impl Color {
-    /// Constructor.
+    /// Yeni bir renk oluşturur.
     pub fn new(rgba: [u8; 4]) -> Color {
         Color { rgba }
     }
 
-    /// Constructor for black (#000000).
+    /// Siyah (`#000000`) renk oluşturur.
     pub fn black() -> Color {
         Color::new([0, 0, 0, 255])
     }
 
-    /// Constructor for white (#FFFFFF).
+    /// Beyaz (`#FFFFFF`) renk oluşturur.
     pub fn white() -> Color {
         Color::new([255, 255, 255, 255])
     }
@@ -108,53 +108,52 @@ impl Color {
     }
 }
 
-/// Possible rotation values for images.
+/// Görüntüler için kullanılabilen döndürme değerleri.
 #[derive(Copy, Clone, Debug)]
 pub enum Rotation {
-    /// No rotation. This is the default.
+    /// Döndürme uygulamaz; varsayılan değer budur.
     Zero,
-    /// Rotated 90 degrees.
+    /// 90 derece döndürür.
     Ninety,
-    /// Rotated 180 degrees.
+    /// 180 derece döndürür.
     OneEighty,
-    /// Rotated 270 degrees.
+    /// 270 derece döndürür.
     TwoSeventy,
 }
 
 image_variants![
-    /// GIF image generator type.
+    /// GIF görüntü üreteci türü.
     GIF,
-    /// PNG image generator type.
+    /// PNG görüntü üreteci türü.
     PNG,
-    /// WEBP image generator type.
+    /// WEBP görüntü üreteci türü.
     WEBP,
-    /// Image Buffer generator type.
+    /// Görüntü tamponu üreteci türü.
     ImageBuffer
 ];
 
 impl Image {
-    /// Returns a new GIF with default values.
+    /// Varsayılan değerlerle yeni bir GIF üreteci döndürür.
     pub fn gif(height: u32) -> Image {
         image_defaults!(GIF, height)
     }
 
-    /// Returns a new PNG with default values.
+    /// Varsayılan değerlerle yeni bir PNG üreteci döndürür.
     pub fn png(height: u32) -> Image {
         image_defaults!(PNG, height)
     }
 
-    /// Returns a new WEBP with default values.
+    /// Varsayılan değerlerle yeni bir WEBP üreteci döndürür.
     pub fn webp(height: u32) -> Image {
         image_defaults!(WEBP, height)
     }
 
-    /// Returns a new ImageBuffer with default values.
+    /// Varsayılan değerlerle yeni bir `ImageBuffer` üreteci döndürür.
     pub fn image_buffer(height: u32) -> Image {
         image_defaults!(ImageBuffer, height)
     }
 
-    /// Generates the given barcode. Returns a `Result<Vec<u8>, Error>` of the encoded bytes or
-    /// an error message.
+    /// Verilen barkodu üretir; başarı durumunda kodlanmış baytları döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<Vec<u8>> {
         let format = match *self {
             Image::GIF { .. } => ImageFormat::Gif,
@@ -172,8 +171,8 @@ impl Image {
         }
     }
 
-    /// Generates the given barcode to an image::ImageBuffer. Returns a `Result<ImageBuffer<Rgba<u8>, Vec<u8>>, Error>`
-    /// of the encoded bytes or an error message.
+    /// Verilen barkodu bir `image::ImageBuffer` içine üretir; başarı durumunda görüntü tamponunu
+    /// döndürür.
     pub fn generate_buffer<T: AsRef<[u8]>>(
         self,
         barcode: T,

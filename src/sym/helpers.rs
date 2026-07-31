@@ -9,13 +9,14 @@ pub(crate) use std::vec::Vec;
 
 use crate::error::{Error, Result};
 
-/// Joins and flattens the given slice of &[u8] slices into a Vec<u8>.
-/// TODO: Work out how to use join_iters with slices and then remove this function.
+/// Verilen `&[u8]` dilimlerini birleştirip düzleştirerek bir `Vec<u8>` oluşturur.
+/// YAPILACAK: `join_iters` işlevinin dilimlerle nasıl kullanılacağını belirleyip bu işlevi kaldır.
 pub fn join_slices(slices: &[&[u8]]) -> Vec<u8> {
     slices.iter().flat_map(|b| b.iter()).cloned().collect()
 }
 
-/// Joins and flattens the given iterator of iterables into a Vec<u8>.
+/// İç içe yinelenebilir değerlerden oluşan yineleyiciyi birleştirip düzleştirerek bir `Vec<u8>`
+/// oluşturur.
 pub fn join_iters<'a, T: Iterator>(iters: T) -> Vec<u8>
 where
     T::Item: IntoIterator<Item = &'a u8>,
@@ -46,7 +47,7 @@ pub fn invariant_or<T>(value: Option<T>, fallback: T, message: &'static str) -> 
     value.unwrap_or(fallback)
 }
 
-/// Calculates the checksum digit using a modulo-10 weighting algorithm.
+/// Modülo-10 ağırlıklandırma algoritmasıyla sağlama basamağını hesaplar.
 pub fn modulo_10_checksum(data: &[u8], even_start: bool) -> u8 {
     let mut odds = 0u16;
     let mut evens = 0u16;
@@ -58,8 +59,8 @@ pub fn modulo_10_checksum(data: &[u8], even_start: bool) -> u8 {
         }
     }
 
-    // EAN-13 (and some others?) barcodes use EVEN-first weighting to maintain
-    // backwards compatibility.
+    // EAN-13 (ve bazı başka türler) geriye dönük uyumluluk için önce ÇİFT ağırlıklandırmayı
+    // kullanır.
     if even_start {
         odds = (odds * 3) % 10;
     } else {

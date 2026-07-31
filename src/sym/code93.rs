@@ -1,20 +1,20 @@
-//! Encoder for Code93 barcodes.
+//! Code93 barkodlarını kodlayan bileşen.
 //!
-//! Code93 is intented to improve upon Code39 barcodes by offering a wider array of encodable
-//! ASCII characters. It also produces denser barcodes than Code39.
+//! Code93, daha geniş bir kodlanabilir ASCII karakter kümesi sunarak Code39'u geliştirmek üzere
+//! tasarlanmıştır. Ayrıca Code39'dan daha yoğun barkodlar üretir.
 //!
-//! Code93 is a continuous, variable-length symbology.
+//! Code93 sürekli ve değişken uzunluklu bir sembolojidir.
 //!
-//! NOTE: This encoder currently only supports the basic Code93 implementation and not full-ASCII
-//! mode.
+//! NOT: Bu kodlayıcı şu anda yalnızca temel Code93 uygulamasını destekler; tam ASCII modunu
+//! desteklemez.
 
 use super::helpers::{Vec, vec};
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
 use core::ops::Range;
 
-// Character -> Binary mappings for each of the 47 allowable character.
-// The special "full-ASCII" characters are represented with (, ), [, ].
+// İzin verilen 47 karakterin her biri için karakter -> ikili değer eşlemeleri.
+// Özel "tam ASCII" karakterleri (, ), [ ve ] ile temsil edilir.
 const CHARS: [(char, [u8; 9]); 47] = [
     ('0', [1, 0, 0, 0, 1, 0, 1, 0, 0]),
     ('1', [1, 0, 1, 0, 0, 1, 0, 0, 0]),
@@ -65,17 +65,17 @@ const CHARS: [(char, [u8; 9]); 47] = [
     (']', [1, 0, 0, 1, 1, 0, 0, 1, 0]),
 ];
 
-// Code93 barcodes must start and end with the '*' special character.
+// Code93 barkodları özel `*` karakteriyle başlayıp bitmelidir.
 const GUARD: [u8; 9] = [1, 0, 1, 0, 1, 1, 1, 1, 0];
 const TERMINATOR: [u8; 1] = [1];
 
-/// The Code93 barcode type.
+/// Code93 barkod türü.
 #[derive(Debug)]
 pub struct Code93(Vec<char>);
 
 impl Code93 {
-    /// Creates a new barcode.
-    /// Returns Result<Code93, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<Code93, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Code93> {
         Code93::parse(data.as_ref()).map(|d| Code93(d.chars().collect()))
     }
@@ -92,7 +92,7 @@ impl Code93 {
         )
     }
 
-    /// Calculates a checksum character using a weighted modulo-47 algorithm.
+    /// Ağırlıklı modülo-47 algoritmasıyla bir sağlama karakteri hesaplar.
     fn checksum_char(&self, data: &[char], weight_threshold: usize) -> char {
         assert!(weight_threshold > 0, "Code93 sağlama ağırlığı sıfır olamaz");
 
@@ -118,12 +118,12 @@ impl Code93 {
         )
     }
 
-    /// Calculates the C checksum character using a weighted modulo-47 algorithm.
+    /// Ağırlıklı modülo-47 algoritmasıyla C sağlama karakterini hesaplar.
     fn c_checksum_char(&self) -> char {
         self.checksum_char(&self.0, 20)
     }
 
-    /// Calculates the K checksum character using a weighted modulo-47 algorithm.
+    /// Ağırlıklı modülo-47 algoritmasıyla K sağlama karakterini hesaplar.
     fn k_checksum_char(&self, c_checksum: char) -> char {
         let mut data: Vec<char> = self.0.clone();
         data.push(c_checksum);
@@ -144,15 +144,15 @@ impl Code93 {
             self.push_encoding(&mut enc, self.char_encoding(c));
         }
 
-        // Checksums.
+        // Sağlama değerleri.
         self.push_encoding(&mut enc, self.char_encoding(c_checksum));
         self.push_encoding(&mut enc, self.char_encoding(k_checksum));
 
         enc
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of encoded binary digits.
+    /// Barkodu kodlar.
+    /// Kodlanmış ikili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let payload = self.payload();
 
@@ -161,13 +161,13 @@ impl Code93 {
 }
 
 impl Parse for Code93 {
-    /// Returns the valid length of data acceptable in this type of barcode.
-    /// Code93 barcodes are variable-length.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
+    /// Code93 barkodları değişken uzunluktadır.
     fn valid_len() -> Range<u32> {
         1..256
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         let (chars, _): (Vec<_>, Vec<_>) = CHARS.iter().cloned().unzip();
         chars
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn code93_encode() -> Result<()> {
-        // Tests for data longer than 15, data longer than 20
+        // 15 ve 20 karakterden uzun verileri sınar.
         let code931 = Code93::new("TEST93")?;
         let code932 = Code93::new("FLAM")?;
         let code933 = Code93::new("99")?;

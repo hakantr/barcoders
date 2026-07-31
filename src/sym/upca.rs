@@ -1,8 +1,8 @@
-//! Encoder for UPCA barcodes.
+//! UPC-A barkodlarını kodlayan bileşen.
 //!
-//! UPCA barcodes are common in retail in the US.
+//! UPC-A barkodları ABD'de perakende sektöründe yaygındır.
 //!
-//! This module defines types for:
+//! Bu modül şu türü tanımlar:
 //!   * UPC-A
 
 use crate::error::{Error, Result};
@@ -10,12 +10,12 @@ use crate::sym::{Parse, helpers};
 use core::ops::Range;
 use helpers::Vec;
 
-/// Encoding mappings for UPC barcodes.
-/// 1 = bar, 0 = no bar.
+/// UPC barkodları için kodlama eşlemeleri.
+/// `1` çubuğu, `0` boşluğu belirtir.
 ///
-/// The two indices are:
-/// * Left side encodings.
-/// * Right side encodings.
+/// İki dizin şunlardır:
+/// * Sol taraf kodlamaları.
+/// * Sağ taraf kodlamaları.
 pub const ENCODINGS: [[[u8; 7]; 10]; 2] = [
     [
         [0, 0, 0, 1, 1, 0, 1],
@@ -43,27 +43,27 @@ pub const ENCODINGS: [[[u8; 7]; 10]; 2] = [
     ],
 ];
 
-/// The left-hand guard pattern.
+/// Sol koruma deseni.
 pub const LEFT_GUARD: [u8; 3] = [1, 0, 1];
-/// The middle guard pattern.
+/// Orta koruma deseni.
 pub const MIDDLE_GUARD: [u8; 5] = [0, 1, 0, 1, 0];
-/// The right-hand guard pattern.
+/// Sağ koruma deseni.
 pub const RIGHT_GUARD: [u8; 3] = [1, 0, 1];
 
-/// The UPCA barcode type.
+/// UPC-A barkod türü.
 #[derive(Debug)]
 pub struct UPCA(Vec<u8>);
 
 impl UPCA {
-    /// Creates a new barcode.
-    /// Returns Result<UPCA, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<UPCA, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<UPCA> {
         let d = UPCA::parse(data.as_ref())?;
         let digits = helpers::parse_digits(d)?;
 
         let upca = UPCA(digits.iter().copied().take(11).collect());
 
-        // If checksum digit is provided, check the checksum.
+        // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = upca.checksum_digit();
         if digits.get(11).is_some_and(|provided| checksum != *provided) {
             return Err(Error::Checksum);
@@ -72,7 +72,7 @@ impl UPCA {
         Ok(upca)
     }
 
-    /// Calculates the checksum digit using a modulo-10 weighting algorithm.
+    /// Modülo-10 ağırlıklandırma algoritmasıyla sağlama basamağını hesaplar.
     fn checksum_digit(&self) -> u8 {
         helpers::modulo_10_checksum(self.0.as_slice(), false)
     }
@@ -129,8 +129,8 @@ impl UPCA {
         helpers::join_iters(slices.iter())
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let left_payload = self.left_payload();
         let right_payload = self.right_payload();
@@ -148,12 +148,12 @@ impl UPCA {
 }
 
 impl Parse for UPCA {
-    /// Returns the valid length of data acceptable in this type of barcode.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     fn valid_len() -> Range<u32> {
         11..12
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         helpers::decimal_chars()
     }

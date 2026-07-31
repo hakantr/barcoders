@@ -1,9 +1,9 @@
-//! Functionality for generating ASCII representations of barcodes.
+//! Barkodların ASCII gösterimlerini üretme işlevleri.
 //!
-//! This is useful for testing and simple verification of barcode correctness.
+//! Testlerde ve barkodun doğruluğunu basitçe denetlemekte kullanışlıdır.
 //!
-//! You will pretty much never need to turn this feature on unless you are adding new functionality
-//! or running the test suite.
+//! Yeni bir işlev eklemediğiniz veya test takımını çalıştırmadığınız sürece bu özelliği etkinleştirmeniz
+//! genellikle gerekmez.
 
 use crate::error::{Error, Result};
 use crate::generators::validate_barcode;
@@ -11,17 +11,17 @@ use crate::generators::validate_barcode;
 use alloc::string::String;
 use core::iter::repeat_n;
 
-/// The ASCII barcode generator type.
+/// ASCII barkod üreteci türü.
 #[derive(Copy, Clone, Debug)]
 pub struct ASCII {
-    /// The height of the barcode (```self.height``` characters high for ASCII).
+    /// Barkodun yüksekliği (ASCII çıktısında `self.height` karakter yüksekliğindedir).
     pub height: usize,
-    /// The X dimension. Specifies the width of the "narrow" bars.
-    /// For ASCII, each will be ```self.xdim``` characters wide.
+    /// X boyutu; "dar" çubukların genişliğini belirler.
+    /// ASCII çıktısında her çubuk `self.xdim` karakter genişliğindedir.
     pub xdim: usize,
 }
 
-/// Maps binary digits to ASCII representation (0=' ', 1='#')
+/// İkili basamakları ASCII gösterimine eşler (`0` = `' '`, `1` = `'#'`).
 const CHARS: [char; 2] = [' ', '#'];
 
 impl Default for ASCII {
@@ -31,7 +31,7 @@ impl Default for ASCII {
 }
 
 impl ASCII {
-    /// Returns a new ASCII with default values.
+    /// Varsayılan değerlerle yeni bir ASCII üreteci döndürür.
     pub fn new() -> ASCII {
         ASCII {
             height: 10,
@@ -53,7 +53,7 @@ impl ASCII {
         Ok(row)
     }
 
-    /// Generates the given barcode. Returns a `Result<String, Error>` indicating success.
+    /// Verilen barkodu üretir; başarı durumunda metin çıktısını döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let mut output = String::new();
         let barcode = barcode.as_ref();

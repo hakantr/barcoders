@@ -1,50 +1,50 @@
-//! Encoder for Code128 barcodes.
+//! Code128 barkodlarını kodlayan bileşen.
 //!
-//! Code128 is a popular, high-density symbology that allows for the encoding of alphanumeric
-//! data along with many special characters by utilising three separate character-sets.
+//! Code128; üç ayrı karakter kümesi kullanarak alfasayısal verileri ve birçok özel karakteri
+//! kodlayabilen, yaygın ve yüksek yoğunluklu bir sembolojidir.
 //!
-//! Code128 also offers double-density encoding of digits.
+//! Code128 ayrıca basamakları çift yoğunlukta kodlayabilir.
 //!
-//! ## Character sets
+//! ## Karakter kümeleri
 //!
-//! Barcoders provides special Unicode syntax for specifying the character set(s) which should be
-//! used in the barcode:
+//! Barcoders, barkodda kullanılacak karakter kümelerini belirtmek için özel bir Unicode söz dizimi
+//! sunar:
 //!
-//! <ul><li>\u{00C0} = Switch to character-set A (À)</li>
-//! <li>\u{0181} = Switch to character-set B (Ɓ)</li>
-//! <li>\u{0106} = Switch to character-set C (Ć)</li></ul>
+//! <ul><li>\u{00C0} = A karakter kümesine geç (À)</li>
+//! <li>\u{0181} = B karakter kümesine geç (Ɓ)</li>
+//! <li>\u{0106} = C karakter kümesine geç (Ć)</li></ul>
 //!
-//! You must provide both the starting character-set along with any changes during the data. This
-//! means all Code128 barcodes must start with either "À", "Ɓ" or "Ć". Simple alphanumeric data
-//! can generally use character-set A solely.
+//! Başlangıç karakter kümesini ve veri içindeki tüm küme değişikliklerini belirtmeniz gerekir. Bu
+//! nedenle bütün Code128 barkodları "À", "Ɓ" veya "Ć" ile başlamalıdır. Basit alfasayısal verilerde
+//! genellikle yalnızca A karakter kümesi kullanılabilir.
 //!
-//! As an example, this barcode uses character-set B:
+//! Örneğin bu barkod B karakter kümesini kullanır:
 //!
 //! <ul><li>\u{0181}HE1234A*1</li></ul>
 //!
-//! Or:
+//! Diğer gösterimi:
 //!
 //! <ul><li>ƁHE1234A*1</li></ul>
 //!
-//! And this one starts at character-set A (the default) and then switches to C to encode the digits more
-//! effectively:
+//! Bu örnek ise varsayılan A karakter kümesiyle başlar, ardından basamakları daha verimli kodlamak
+//! için C kümesine geçer:
 //!
 //! <ul><li>\u{00C0}HE@$A\u{0106}123456</li></ul>
 //!
-//! Or:
+//! Diğer gösterimi:
 //!
 //! <ul><li>ÀHE@$AĆ123456</li></ul>
 //!
-//! ## Unicode characters
+//! ## Unicode karakterleri
 //!
-//! The invisible unicode characters that are available in character set A should be represented as
-//! their Unicode sequences. For example, to represent the 'ACK' character:
+//! A karakter kümesindeki görünmez Unicode karakterleri, Unicode dizileriyle gösterilmelidir.
+//! Örneğin `ACK` karakterini göstermek için:
 //!
 //! <ul><li>À\u{0006}</li></ul>
 //!
-//! ## Special-purpose function characters (FNC1 - 4)
+//! ## Özel amaçlı işlev karakterleri (FNC1 - 4)
 //!
-//! The function sequences can be represented via the following unicode characters:
+//! İşlev dizileri aşağıdaki Unicode karakterleriyle gösterilebilir:
 //!
 //! - FNC1: ```Ź``` (```\u{0179}```)
 //! - FNC2: ```ź``` (```\u{017A}```)
@@ -81,7 +81,7 @@ enum CharacterSet {
     None,
 }
 
-// Character -> Binary mappings for each of the allowable characters in each character-set.
+// Her karakter kümesinde izin verilen karakterler için karakter -> ikili değer eşlemeleri.
 const CHARS: [([&str; 3], Encoding); 106] = [
     ([" ", " ", "00"], [1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0]),
     (["!", "!", "01"], [1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0]),
@@ -215,26 +215,25 @@ const CHARS: [([&str; 3], Encoding); 106] = [
     ),
 ];
 
-// Stop sequence.
+// Durdurma dizisi.
 const STOP: Encoding = [1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0];
 
-// Termination sequence.
+// Sonlandırma dizisi.
 const TERM: [u8; 2] = [1, 1];
 
-/// The Code128 barcode type.
+/// Code128 barkod türü.
 ///
-/// # Character sets
+/// # Karakter kümeleri
 ///
-/// * 128A (Code Set A) – ASCII characters 00 to 95 (0–9, A–Z and control
-///   codes), special characters, and FNC 1–4
-/// * 128B (Code Set B) – ASCII characters 32 to 127 (0–9, A–Z, a–z), special
-///   characters, and FNC 1–4
-/// * 128C (Code Set C) – 00–99 (encodes two digits with a single code point)
-///   and FNC1
+/// * 128A (A Kod Kümesi) – 00 ile 95 arasındaki ASCII karakterleri (0–9, A–Z ve denetim
+///   kodları), özel karakterler ve FNC 1–4
+/// * 128B (B Kod Kümesi) – 32 ile 127 arasındaki ASCII karakterleri (0–9, A–Z, a–z), özel
+///   karakterler ve FNC 1–4
+/// * 128C (C Kod Kümesi) – 00–99 (iki basamağı tek kod noktasıyla kodlar) ve FNC1
 ///
-/// See [module] docs for additional information.
+/// Ek bilgi için [modül] belgelerine bakın.
 ///
-/// [module]: crate::sym::code128
+/// [modül]: crate::sym::code128
 #[derive(Debug)]
 pub struct Code128(Vec<Unit>);
 
@@ -287,8 +286,8 @@ impl CharacterSet {
 }
 
 impl Code128 {
-    /// Creates a new barcode.
-    /// Returns Result<Code128, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<Code128, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Code128> {
         let data = data.as_ref();
         if data.len() < 2 {
@@ -298,7 +297,7 @@ impl Code128 {
         Code128::parse(data.chars().collect()).map(Code128)
     }
 
-    // Tokenizes and collects the data into the appropriate character-sets.
+    // Veriyi belirteçlere ayırır ve uygun karakter kümelerinde toplar.
     fn parse(chars: Vec<char>) -> Result<Vec<Unit>> {
         let mut units: Vec<Unit> = vec![];
         let mut char_set = CharacterSet::None;
@@ -345,7 +344,7 @@ impl Code128 {
         }
     }
 
-    /// Calculates the checksum index using a modulo-103 algorithm.
+    /// Modülo-103 algoritmasıyla sağlama dizinini hesaplar.
     fn checksum_value(&self) -> usize {
         let mut sum = 0usize;
 
@@ -381,8 +380,8 @@ impl Code128 {
         helpers::join_iters(slices.iter())
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let payload = self.payload();
         let checksum = self.checksum_encoding();
@@ -425,9 +424,9 @@ mod tests {
 
     #[test]
     fn invalid_data_code128() -> Result<()> {
-        let code128_a = Code128::new("À☺ "); // Unknown character.
-        let code128_b = Code128::new("ÀHELLOĆ12352"); // Trailing carry at the end.
-        let code128_c = Code128::new("HELLO"); // No Character-Set specified.
+        let code128_a = Code128::new("À☺ "); // Bilinmeyen karakter.
+        let code128_b = Code128::new("ÀHELLOĆ12352"); // Sonda eşleşmemiş basamak.
+        let code128_c = Code128::new("HELLO"); // Karakter kümesi belirtilmemiş.
 
         assert!(matches!(code128_a, Err(Error::Character)));
         assert!(matches!(code128_b, Err(Error::Character)));

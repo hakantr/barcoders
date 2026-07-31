@@ -1,17 +1,16 @@
-//! Encoder for Code39 barcodes.
+//! Code39 barkodlarını kodlayan bileşen.
 //!
-//! Code39 is a discrete, variable-length barcode. They are often referred to as "3-of-9".
+//! Code39 ayrık ve değişken uzunluklu bir barkoddur. Sıklıkla "3-of-9" adıyla anılır.
 //!
-//! Code39 is the standard barcode used by the United States Department of Defense and is also
-//! popular in non-retail environments. It was one of the first symbologies to support encoding
-//! of the ASCII alphabet.
+//! Code39, ABD Savunma Bakanlığının kullandığı standart barkoddur ve perakende dışı ortamlarda da
+//! yaygındır. ASCII alfabesini kodlamayı destekleyen ilk sembolojilerden biridir.
 
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
 use core::ops::Range;
 use helpers::{Vec, vec};
 
-// Character -> Binary mappings for each of the 43 allowable character.
+// İzin verilen 43 karakterin her biri için karakter -> ikili değer eşlemeleri.
 const CHARS: [(char, [u8; 12]); 43] = [
     ('0', [1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1]),
     ('1', [1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1]),
@@ -58,14 +57,14 @@ const CHARS: [(char, [u8; 12]); 43] = [
     ('%', [1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
 ];
 
-// Code39 barcodes must start and end with the '*' special character.
+// Code39 barkodları özel `*` karakteriyle başlayıp bitmelidir.
 const GUARD: [u8; 12] = [1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1];
 
-/// The Code39 barcode type.
+/// Code39 barkod türü.
 #[derive(Debug)]
 pub struct Code39 {
     data: Vec<char>,
-    /// Indicates whether to encode a checksum digit.
+    /// Sağlama basamağının kodlanıp kodlanmayacağını belirtir.
     pub checksum: bool,
 }
 
@@ -77,19 +76,19 @@ impl Code39 {
         })
     }
 
-    /// Creates a new barcode.
-    /// Returns Result<Code39, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<Code39, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Code39> {
         Code39::init(data.as_ref(), false)
     }
 
-    /// Creates a new barcode with an appended check-digit, calculated using modulo-43..
-    /// Returns Result<Code39, Error> indicating parse success.
+    /// Modülo-43 ile hesaplanan sağlama basamağını ekleyerek yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<Code39, Error>` olarak döndürür.
     pub fn with_checksum<T: AsRef<str>>(data: T) -> Result<Code39> {
         Code39::init(data.as_ref(), true)
     }
 
-    /// Calculates the checksum character using a modulo-43 algorithm.
+    /// Modülo-43 algoritmasıyla sağlama karakterini hesaplar.
     fn checksum_char(&self) -> char {
         let mut sum = 0usize;
         for character in &self.data {
@@ -128,8 +127,7 @@ impl Code39 {
         )
     }
 
-    // Encoded characters are separated by a single "narrow" bar in
-    // Code39 barcodes.
+    // Code39 barkodlarında kodlanmış karakterler tek bir "dar" çubukla ayrılır.
     fn push_encoding(&self, into: &mut Vec<u8>, from: [u8; 12]) {
         into.extend(from.iter().cloned());
         into.push(0);
@@ -149,8 +147,8 @@ impl Code39 {
         enc
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let payload = self.payload();
 

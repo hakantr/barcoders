@@ -1,11 +1,10 @@
-//! Encoder for 2-of-5 barcodes.
+//! 2-of-5 barkodlarını kodlayan bileşen.
 //!
-//! 2-of-5 barcodes are often used by Airlines and in some industrial settings.
+//! 2-of-5 barkodları havayollarında ve bazı endüstriyel ortamlarda sıkça kullanılır.
 //!
-//! They also make an appearance in retail where they are sometimes used for the outer cartons on
-//! groups of products (cartons of Cola, etc).
+//! Perakendede de ürün gruplarının dış kolilerinde (kola kolileri gibi) kullanılabilir.
 //!
-//! Most of the time you will want to use the interleaved barcode over the standard option.
+//! Çoğu durumda standart seçenek yerine aralıklı barkodu kullanmak istersiniz.
 
 use crate::error::Result;
 use crate::sym::Parse;
@@ -46,21 +45,20 @@ impl AsRef<[u8]> for Interleaved {
     }
 }
 
-/// The 2-of-5 barcode type.
+/// 2-of-5 barkod türü.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TF {
-    /// The standard 2-of-5 barcode type.
+    /// Standart 2-of-5 barkod türü.
     Standard(Standard),
-    /// The interleaved 2-of-5 barcode type.
+    /// Aralıklı 2-of-5 barkod türü.
     Interleaved(Interleaved),
 }
 
 impl TF {
-    /// Creates a new ITF barcode.
-    /// If the length of the given data is odd, a checksum value will be computed and appended to
-    /// the data for encoding.
+    /// Yeni bir ITF barkodu oluşturur.
+    /// Verilen verinin uzunluğu tekse bir sağlama değeri hesaplanarak kodlanacak veriye eklenir.
     ///
-    /// Returns Result<TF::Interleaved, Error> indicating parse success.
+    /// Girdinin çözümlenme sonucunu `Result<TF::Interleaved, Error>` olarak döndürür.
     pub fn interleaved<T: AsRef<str>>(data: T) -> Result<TF> {
         let data = TF::parse(data.as_ref())?;
         let mut digits = helpers::parse_digits(data)?;
@@ -74,9 +72,9 @@ impl TF {
         Ok(TF::Interleaved(Interleaved(digits)))
     }
 
-    /// Creates a new STF barcode.
+    /// Yeni bir STF barkodu oluşturur.
     ///
-    /// Returns Result<TF::Standard, Error> indicating parse success.
+    /// Girdinin çözümlenme sonucunu `Result<TF::Standard, Error>` olarak döndürür.
     pub fn standard<T: AsRef<str>>(data: T) -> Result<TF> {
         let data = TF::parse(data.as_ref())?;
         let digits = helpers::parse_digits(data)?;
@@ -163,8 +161,8 @@ impl TF {
         helpers::join_iters(weaves.iter())
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         match *self {
             TF::Standard(_) => {
@@ -180,13 +178,13 @@ impl TF {
 }
 
 impl Parse for TF {
-    /// Returns the valid length of data acceptable in this type of barcode.
-    /// 2-of-5 barcodes are variable-length.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
+    /// 2-of-5 barkodları değişken uzunluktadır.
     fn valid_len() -> Range<u32> {
         1..256
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         helpers::decimal_chars()
     }
@@ -248,7 +246,7 @@ mod tests {
 
     #[test]
     fn itf_encode() -> Result<()> {
-        let itf = TF::interleaved("1234567")?; // Check digit: 0
+        let itf = TF::interleaved("1234567")?; // Sağlama basamağı: 0
 
         assert_eq!(
             collapse_vec(itf.encode()),

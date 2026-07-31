@@ -1,9 +1,9 @@
-//! Encoder for EAN barcodes.
+//! EAN barkodlarını kodlayan bileşen.
 //!
-//! EAN13 barcodes are very common in retail. 90% of the products you purchase from a supermarket
-//! will use EAN13.
+//! EAN13 barkodları perakendede çok yaygındır. Bir süpermarketten satın aldığınız ürünlerin yaklaşık
+//! %90'ı EAN13 kullanır.
 //!
-//! This module defines types for:
+//! Bu modül şu türleri tanımlar:
 //!   * EAN-13
 //!   * Bookland
 //!   * JAN
@@ -13,13 +13,13 @@ use crate::sym::{Parse, helpers};
 use core::ops::Range;
 use helpers::Vec;
 
-/// Encoding mappings for EAN barcodes.
-/// 1 = bar, 0 = no bar.
+/// EAN barkodları için kodlama eşlemeleri.
+/// `1` çubuğu, `0` boşluğu belirtir.
 ///
-/// The three indices are:
-/// * Left side A (odd parity).
-/// * Left side B (even parity).
-/// * Right side encodings.
+/// Üç dizin şunlardır:
+/// * Sol taraf A (tek eşlik).
+/// * Sol taraf B (çift eşlik).
+/// * Sağ taraf kodlamaları.
 pub const ENCODINGS: [[[u8; 7]; 10]; 3] = [
     [
         [0, 0, 0, 1, 1, 0, 1],
@@ -59,8 +59,8 @@ pub const ENCODINGS: [[[u8; 7]; 10]; 3] = [
     ],
 ];
 
-/// Maps parity (odd/even) for the left-side digits based on the first digit in
-/// the number system portion of the barcode data.
+/// Sol taraftaki basamakların eşliğini (tek/çift), barkod verisinin sayı sistemi bölümündeki ilk
+/// basamağa göre eşler.
 const PARITY: [[usize; 5]; 10] = [
     [0, 0, 0, 0, 0],
     [0, 1, 0, 1, 1],
@@ -74,35 +74,35 @@ const PARITY: [[usize; 5]; 10] = [
     [1, 1, 0, 1, 0],
 ];
 
-/// The left-hand guard pattern.
+/// Sol koruma deseni.
 pub const LEFT_GUARD: [u8; 3] = [1, 0, 1];
-/// The middle guard pattern.
+/// Orta koruma deseni.
 pub const MIDDLE_GUARD: [u8; 5] = [0, 1, 0, 1, 0];
-/// The right-hand guard pattern.
+/// Sağ koruma deseni.
 pub const RIGHT_GUARD: [u8; 3] = [1, 0, 1];
 
-/// The EAN-13 barcode type.
+/// EAN-13 barkod türü.
 #[derive(Debug)]
 pub struct EAN13(Vec<u8>);
 
-/// The Bookland barcode type.
-/// Bookland are EAN-13 that use number system 978.
+/// Bookland barkod türü.
+/// Bookland barkodları, 978 sayı sistemini kullanan EAN-13 barkodlarıdır.
 pub type Bookland = EAN13;
 
-/// The JAN barcode type.
-/// JAN are EAN-13 that use number system 49.
+/// JAN barkod türü.
+/// JAN barkodları, 49 sayı sistemini kullanan EAN-13 barkodlarıdır.
 pub type JAN = EAN13;
 
 impl EAN13 {
-    /// Creates a new barcode.
-    /// Returns Result<EAN13, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<EAN13, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EAN13> {
         let d = EAN13::parse(data.as_ref())?;
         let digits = helpers::parse_digits(d)?;
 
         let ean13 = EAN13(digits.iter().copied().take(12).collect());
 
-        // If checksum digit is provided, check the checksum.
+        // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = ean13.checksum_digit();
         if digits.get(12).is_some_and(|provided| checksum != *provided) {
             return Err(Error::Checksum);
@@ -111,7 +111,7 @@ impl EAN13 {
         Ok(ean13)
     }
 
-    /// Calculates the checksum digit using a modulo-10 weighting algorithm.
+    /// Modülo-10 ağırlıklandırma algoritmasıyla sağlama basamağını hesaplar.
     fn checksum_digit(&self) -> u8 {
         helpers::modulo_10_checksum(self.0.as_slice(), true)
     }
@@ -196,8 +196,8 @@ impl EAN13 {
         helpers::join_iters(slices.iter())
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let number_system = self.number_system_encoding();
         let left_payload = self.left_payload();
@@ -217,12 +217,12 @@ impl EAN13 {
 }
 
 impl Parse for EAN13 {
-    /// Returns the valid length of data acceptable in this type of barcode.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     fn valid_len() -> Range<u32> {
         12..13
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         helpers::decimal_chars()
     }
@@ -284,8 +284,8 @@ mod tests {
 
     #[test]
     fn ean13_encode_as_bookland() -> Result<()> {
-        let bookland1 = Bookland::new("978345612345")?; // Check digit: 5
-        let bookland2 = Bookland::new("978118999561")?; // Check digit: 5
+        let bookland1 = Bookland::new("978345612345")?; // Sağlama basamağı: 5
+        let bookland2 = Bookland::new("978118999561")?; // Sağlama basamağı: 5
 
         assert_eq!(
             collapse_vec(bookland1.encode()),
@@ -300,8 +300,8 @@ mod tests {
 
     #[test]
     fn ean13_encode() -> Result<()> {
-        let ean131 = EAN13::new("750103131130")?; // Check digit: 5
-        let ean132 = EAN13::new("983465123499")?; // Check digit: 5
+        let ean131 = EAN13::new("750103131130")?; // Sağlama basamağı: 5
+        let ean132 = EAN13::new("983465123499")?; // Sağlama basamağı: 5
 
         assert_eq!(
             collapse_vec(ean131.encode()),

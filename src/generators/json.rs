@@ -1,8 +1,8 @@
-//! Functionality for generating JSON representations of barcodes.
+//! Barkodların JSON gösterimlerini üretme işlevleri.
 //!
-//! This is useful for passing encoded data to third-party systems in a conventional format.
+//! Kodlanmış veriyi standart bir biçimde üçüncü taraf sistemlere aktarmakta kullanışlıdır.
 //!
-//! Output will be of the format:
+//! Çıktı şu biçimdedir:
 //! ```javascript
 //! {
 //!   "height": 10,
@@ -16,12 +16,12 @@ use crate::generators::validate_barcode;
 #[cfg(not(feature = "std"))]
 use alloc::{format, string::String};
 
-/// The JSON  barcode generator type.
+/// JSON barkod üreteci türü.
 #[derive(Copy, Clone, Debug)]
 pub struct JSON {
-    /// The height of the barcode.
+    /// Barkodun yüksekliği.
     pub height: usize,
-    /// The X dimension. Specifies the width of the "narrow" bars.
+    /// X boyutu; "dar" çubukların genişliğini belirler.
     pub xdim: usize,
 }
 
@@ -32,7 +32,7 @@ impl Default for JSON {
 }
 
 impl JSON {
-    /// Returns a new JSON with default values.
+    /// Varsayılan değerlerle yeni bir JSON üreteci döndürür.
     pub fn new() -> JSON {
         JSON {
             height: 10,
@@ -40,7 +40,7 @@ impl JSON {
         }
     }
 
-    /// Generates the given barcode. Returns a `Result<String, Error>` indicating success.
+    /// Verilen barkodu üretir; başarı durumunda JSON metnini döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let barcode = barcode.as_ref();
         validate_barcode(barcode)?;
@@ -53,7 +53,7 @@ impl JSON {
             acc + n + ","
         });
 
-        // Kill trailing comma.
+        // Sondaki virgülü kaldır.
         bits.pop();
 
         let output = format!(

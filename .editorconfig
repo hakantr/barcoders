@@ -1,5 +1,5 @@
-# EditorConfig helps developers define and maintain consistent
-# coding styles between different editors and IDEs
+# EditorConfig, farklı düzenleyiciler ve geliştirme ortamları arasında
+# tutarlı kod biçemleri tanımlamaya ve korumaya yardımcı olur
 # editorconfig.org
 
 root = true

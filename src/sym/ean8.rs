@@ -1,7 +1,7 @@
-//! Encoder for EAN-8 barcodes.
+//! EAN-8 barkodlarını kodlayan bileşen.
 //!
-//! EAN-8 barcodes are EAN style barcodes for smaller packages on products like
-//! cigaretts, chewing gum, etc where package space is limited.
+//! EAN-8 barkodları; sigara ve sakız gibi ambalaj alanının kısıtlı olduğu küçük ürün paketlerinde
+//! kullanılan EAN biçimli barkodlardır.
 
 use crate::error::{Error, Result};
 use crate::sym::ean13::{ENCODINGS, LEFT_GUARD, MIDDLE_GUARD, RIGHT_GUARD};
@@ -9,20 +9,20 @@ use crate::sym::{Parse, helpers};
 use core::ops::Range;
 use helpers::{Vec, vec};
 
-/// The EAN-8 barcode type.
+/// EAN-8 barkod türü.
 #[derive(Debug)]
 pub struct EAN8(Vec<u8>);
 
 impl EAN8 {
-    /// Creates a new barcode.
-    /// Returns Result<EAN8, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<EAN8, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EAN8> {
         let d = EAN8::parse(data.as_ref())?;
         let digits = helpers::parse_digits(d)?;
 
         let ean8 = EAN8(digits.iter().copied().take(7).collect());
 
-        // If checksum digit is provided, check the checksum.
+        // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = ean8.checksum_digit();
         if digits.get(7).is_some_and(|provided| checksum != *provided) {
             return Err(Error::Checksum);
@@ -31,7 +31,7 @@ impl EAN8 {
         Ok(ean8)
     }
 
-    /// Calculates the checksum digit using a weighting algorithm.
+    /// Ağırlıklandırma algoritmasıyla sağlama basamağını hesaplar.
     fn checksum_digit(&self) -> u8 {
         helpers::modulo_10_checksum(self.0.as_slice(), false)
     }
@@ -106,8 +106,8 @@ impl EAN8 {
         helpers::join_iters(slices.iter())
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let number_system = self.number_system_encoding();
         let left_payload = self.left_payload();
@@ -127,12 +127,12 @@ impl EAN8 {
 }
 
 impl Parse for EAN8 {
-    /// Returns the valid length of data acceptable in this type of barcode.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     fn valid_len() -> Range<u32> {
         7..8
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         helpers::decimal_chars()
     }
@@ -186,8 +186,8 @@ mod tests {
 
     #[test]
     fn ean8_encode() -> Result<()> {
-        let ean81 = EAN8::new("5512345")?; // Check digit: 7
-        let ean82 = EAN8::new("9834651")?; // Check digit: 3
+        let ean81 = EAN8::new("5512345")?; // Sağlama basamağı: 7
+        let ean82 = EAN8::new("9834651")?; // Sağlama basamağı: 3
 
         assert_eq!(
             collapse_vec(ean81.encode()),

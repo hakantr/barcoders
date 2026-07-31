@@ -1,20 +1,20 @@
-//! Supported methods of barcode generation.
+//! Desteklenen barkod üretme yöntemleri.
 //!
-//! Each generation option is an optionally-compiled feature, which you must opt-into when
-//! compiling.
+//! Her üretim seçeneği isteğe bağlı derlenen bir özelliktir; derleme sırasında kullanmak
+//! istediklerinizi açıkça etkinleştirmeniz gerekir.
 //!
-//! For example:
+//! Örneğin:
 //!
 //! ```toml
 //! [dependencies]
 //! barcoders = {version = "*", features = ["image"]}
 //! ```
 //!
-//! Features:
-//! - `ascii`: Generate ASCII-art barcodes.
-//! - `json`: Generate JSON barcodes.
-//! - `image`: Generate image-based barcodes.
-//! - `svg`: Generate SVG barcodes.
+//! Özellikler:
+//! - `ascii`: ASCII çizimi olarak barkod üretir.
+//! - `json`: JSON barkod gösterimi üretir.
+//! - `image`: Görüntü tabanlı barkod üretir.
+//! - `svg`: SVG barkod gösterimi üretir.
 
 use crate::error::{Error, Result};
 

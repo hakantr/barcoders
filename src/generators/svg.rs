@@ -1,21 +1,21 @@
-//! Functionality for generating SVG representations of barcodes.
+//! Barkodların SVG gösterimlerini üretme işlevleri.
 //!
-//! An SVG can be constructed via the standard constructor pattern
-//! or via a constructor method if you want default values.
+//! SVG, standart yapı kurma söz dizimiyle ya da varsayılan değerler isteniyorsa bir kurucu metotla
+//! oluşturulabilir.
 //!
-//! For example:
+//! Örneğin:
 //!
 //! ```rust
 //! use barcoders::generators::svg::*;
 //!
-//! // Specify your own struct fields.
+//! // Yapı alanlarını kendiniz belirtin.
 //! let svg = SVG{height: 80,
 //!               xdim: 1,
 //!               background: Color{rgba: [255, 0, 0, 255]},
 //!               foreground: Color::black(),
 //!               xmlns: Some(String::from("http://www.w3.org/2000/svg"))};
 //!
-//! // Or use the constructor for defaults (you must specify the height).
+//! // Ya da varsayılanlar için kurucuyu kullanın (yüksekliği belirtmeniz gerekir).
 //! let svg = SVG::new(100)
 //!               .xdim(2)
 //!               .background(Color::white())
@@ -51,25 +51,25 @@ trait ToHex {
     }
 }
 
-/// Represents a RGBA color for the barcode foreground and background.
+/// Barkodun ön ve arka planında kullanılan bir RGBA rengini temsil eder.
 #[derive(Copy, Clone, Debug)]
 pub struct Color {
-    /// Reg, Green, Blue, Alpha value.
+    /// Kırmızı, yeşil, mavi ve alfa değeri.
     pub rgba: [u8; 4],
 }
 
 impl Color {
-    /// Constructor.
+    /// Yeni bir renk oluşturur.
     pub fn new(rgba: [u8; 4]) -> Color {
         Color { rgba }
     }
 
-    /// Constructor for black (#000000).
+    /// Siyah (`#000000`) renk oluşturur.
     pub fn black() -> Color {
         Color::new([0, 0, 0, 255])
     }
 
-    /// Constructor for white (#FFFFFF).
+    /// Beyaz (`#FFFFFF`) renk oluşturur.
     pub fn white() -> Color {
         Color::new([255, 255, 255, 255])
     }
@@ -89,24 +89,24 @@ impl ToHex for Color {
     }
 }
 
-/// The SVG barcode generator type.
+/// SVG barkod üreteci türü.
 #[derive(Clone, Debug)]
 pub struct SVG {
-    /// The height of the barcode (```self.height``` pixels high for SVG).
+    /// Barkodun yüksekliği (SVG çıktısında `self.height` piksel yüksekliğindedir).
     pub height: u32,
-    /// The X dimension. Specifies the width of the "narrow" bars.
-    /// For SVG, each will be ```self.xdim``` pixels wide.
+    /// X boyutu; "dar" çubukların genişliğini belirler.
+    /// SVG çıktısında her çubuk `self.xdim` piksel genişliğindedir.
     pub xdim: u32,
-    /// The RGBA color for the foreground.
+    /// Ön planın RGBA rengi.
     pub foreground: Color,
-    /// The RGBA color for the foreground.
+    /// Arka planın RGBA rengi.
     pub background: Color,
-    /// The XML namespace
+    /// XML ad alanı.
     pub xmlns: Option<String>,
 }
 
 impl SVG {
-    /// Returns a new SVG with default values.
+    /// Varsayılan değerlerle yeni bir SVG üreteci döndürür.
     pub fn new(height: u32) -> SVG {
         SVG {
             height,
@@ -121,25 +121,25 @@ impl SVG {
         }
     }
 
-    /// Set the xml namespace (xmlns) of the SVG
+    /// SVG'nin XML ad alanını (`xmlns`) ayarlar.
     pub fn xmlns(mut self, xmlns_uri: String) -> Self {
         self.xmlns = Some(xmlns_uri);
         self
     }
 
-    /// Set the x dimensional bar width
+    /// X boyutundaki çubuk genişliğini ayarlar.
     pub fn xdim(mut self, xdim: u32) -> Self {
         self.xdim = xdim;
         self
     }
 
-    /// Set the foreground (bar) color
+    /// Ön plan (çubuk) rengini ayarlar.
     pub fn foreground(mut self, color: Color) -> Self {
         self.foreground = color;
         self
     }
 
-    /// Set the background color
+    /// Arka plan rengini ayarlar.
     pub fn background(mut self, color: Color) -> Self {
         self.background = color;
         self
@@ -167,8 +167,7 @@ impl SVG {
         )
     }
 
-    /// Generates the given barcode. Returns a `Result<String, Error>` of the SVG data or an
-    /// error message.
+    /// Verilen barkodu üretir; başarı durumunda SVG verisini döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let barcode = barcode.as_ref();
         validate_barcode(barcode)?;

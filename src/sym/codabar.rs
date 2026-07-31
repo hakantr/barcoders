@@ -1,11 +1,12 @@
-//! Encoder for Codabar barcodes.
+//! Codabar barkodlarını kodlayan bileşen.
 //!
-//! Codabar is a simple, self-checking symbology without a standard for a checksum digit.
+//! Codabar, sağlama basamağı için bir standardı bulunmayan, basit ve kendi kendini denetleyen bir
+//! sembolojidir.
 //!
-//! Codabar is used in the USA by FedEx, some Hospitals, and photo labs.
+//! Codabar ABD'de FedEx, bazı hastaneler ve fotoğraf laboratuvarları tarafından kullanılır.
 //!
-//! Barcodes of this variant should start and end with either A, B, C, or D depending on
-//! the industry.
+//! Bu tür barkodlar sektöre bağlı olarak A, B, C veya D karakterlerinden biriyle başlayıp
+//! bitmelidir.
 
 use super::helpers::{Vec, vec};
 use crate::error::{Error, Result};
@@ -89,13 +90,13 @@ impl Unit {
     }
 }
 
-/// The Codabar barcode type.
+/// Codabar barkod türü.
 #[derive(Debug)]
 pub struct Codabar(Vec<Unit>);
 
 impl Codabar {
-    /// Creates a new barcode.
-    /// Returns Result<Codabar, Error> indicating parse success.
+    /// Yeni bir barkod oluşturur.
+    /// Girdinin çözümlenme sonucunu `Result<Codabar, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Codabar> {
         let d = Codabar::parse(data.as_ref())?;
         let units = d
@@ -106,8 +107,8 @@ impl Codabar {
         Ok(Codabar(units))
     }
 
-    /// Encodes the barcode.
-    /// Returns a Vec<u8> of binary digits.
+    /// Barkodu kodlar.
+    /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
         let mut enc: Vec<u8> = vec![];
 
@@ -124,13 +125,13 @@ impl Codabar {
 }
 
 impl Parse for Codabar {
-    /// Returns the valid length of data acceptable in this type of barcode.
-    /// Codabar barcodes are variable-length.
+    /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
+    /// Codabar barkodları değişken uzunluktadır.
     fn valid_len() -> Range<u32> {
         1..256
     }
 
-    /// Returns the set of valid characters allowed in this type of barcode.
+    /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
     fn valid_chars() -> Vec<char> {
         vec![
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '/', '.', ':', '+', '$', 'A',

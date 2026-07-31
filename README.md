@@ -1,256 +1,241 @@
-[![Build Status](https://travis-ci.org/buntine/barcoders.svg?branch=master)](https://travis-ci.org/buntine/barcoders)
-[![Coverage Status](https://coveralls.io/repos/buntine/barcoders/badge.svg?branch=master&service=github)](https://coveralls.io/github/buntine/barcoders?branch=master)
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Crates.io](http://meritbadge.herokuapp.com/barcoders)](https://crates.io/crates/barcoders)
-[![Algorithmia](https://algorithmia.com/algorithms/anowell/barcoders/badge)](https://algorithmia.com/algorithms/anowell/barcoders)
+[![Sürekli entegrasyon](https://github.com/hakantr/barcoders/actions/workflows/ci.yml/badge.svg)](https://github.com/hakantr/barcoders/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/barcoders.svg)](https://crates.io/crates/barcoders)
+[![Belgeler](https://docs.rs/barcoders/badge.svg)](https://docs.rs/barcoders)
+[![Lisans: MIT veya Apache-2.0](https://img.shields.io/crates/l/barcoders.svg)](#lisans)
 
 ![BARCODERS](/media/logo.jpg?raw=true "BARCODERS")
 
-**Barcoders** is a barcode-encoding library for the Rust programming language.
+**Barcoders**, Rust programlama dili için bir barkod kodlama kütüphanesidir.
 
-Barcoders allows you to encode valid data for a chosen barcode symbology into a ```Vec<u8>``` representation of the underlying binary structure. From here, you can take advantage of one of the optional builtin generators (for exporting to SVG, GIF, PNG, etc) or build your own.
+Seçilen barkod sembolojisine uygun veriyi temel ikili yapıyı temsil eden bir `Vec<u8>` değerine
+kodlar. Ardından isteğe bağlı yerleşik üreteçlerden biriyle SVG, GIF, PNG, WEBP, JSON veya ASCII
+çıktısı alabilir ya da kendi üretecinizi oluşturabilirsiniz.
 
-## Installation
+## Kurulum
 
-Barcoders requires Rust 1.95.0 or newer and uses Rust 2024 edition.
+Barcoders, Rust 1.95.0 veya daha yeni bir sürüm gerektirir ve Rust 2024 sürümünü kullanır.
 
-For encode-only functionality (e.g if you just want to translate a `String` into a `Vec<u8>` of binary digits):
+Yalnızca kodlama işlevleri için:
 
 ```toml
 [dependencies]
 barcoders = "2.0.0"
 ```
 
-If you want to generate barcodes into a particular format, turn on the appropriate feature(s):
+Belirli çıktı biçimleri üretmek için gerekli özellikleri etkinleştirin:
 
 ```toml
 [dependencies]
-barcoders = {version = "2.0.0", features = ["image", "ascii", "svg", "json"]}
+barcoders = { version = "2.0.0", features = ["image", "ascii", "svg", "json"] }
 ```
 
-Each generator is an optional feature so you only need to compile what you want to use.
-See below for the feature associated to the generation functionality you desire.
+Her üreteç isteğe bağlı bir özelliktir; böylece yalnızca kullandığınız işlevleri derlersiniz.
 
-## Documentation
+## Belgeler
 
-[Documentation and examples are available here](https://docs.rs/barcoders).
+API belgeleri ve örnekler [docs.rs/barcoders](https://docs.rs/barcoders) adresindedir.
 
-## Current Support
+## Güncel destek
 
-The ultimate goal of Barcoders is to provide encoding support for all major (and many not-so-major) symbologies.
+Barcoders'ın amacı, yaygın sembolojilerin tümünü ve daha az kullanılanların çoğunu kodlayabilmektir.
 
-### Symbologies
+### Sembolojiler
 
-* EAN-13
-  * UPC-A
-  * JAN
-  * Bookland
-* EAN-8
-* EAN Supplementals
-  * EAN-2
-  * EAN-5
-* Code11
-  * USD-8
-* Code39
-* Code93
-* Code128 (A, B, C)
-* Two-Of-Five
-  * Interleaved (ITF)
-  * Standard (STF)
-* Codabar
-* More coming!
+- EAN-13
+  - UPC-A
+  - JAN
+  - Bookland
+- EAN-8
+- Ek EAN barkodları
+  - EAN-2
+  - EAN-5
+- Code11
+  - USD-8
+- Code39
+- Code93
+- Code128 (A, B, C)
+- 2-of-5
+  - Aralıklı (ITF)
+  - Standart (STF)
+- Codabar
 
-### Generators
+### Üreteçler
 
-* ASCII (feature: `ascii`)
-* JSON (feature: `json`)
-* SVG (feature: `svg`)
-* PNG (feature: `image`)
-* GIF (feature: `image`)
-* WEBP (feature: `image`)
-* Image Buffer (feature: `image`)
-* Or add your own
+- ASCII (özellik: `ascii`)
+- JSON (özellik: `json`)
+- SVG (özellik: `svg`)
+- PNG (özellik: `image`)
+- GIF (özellik: `image`)
+- WEBP (özellik: `image`)
+- Görüntü tamponu (özellik: `image`)
+- Kendi üreteciniz
 
-## Examples
+## Hata ve panik politikası
 
-### Encoding
+Kamuya açık kurucular, geçersiz kullanıcı girdisini `Result<T, Error>` ile bildirir. Üreteçler de
+geçersiz ikili gösterim, taşan çıktı boyutları ve hedef biçime dönüştürme hataları için yapılandırılmış
+bir hata döndürür. Doğrulanmış bir barkodun `encode` işlemi mantıksal olarak hatasız olduğundan
+doğrudan `Vec<u8>` döndürür.
+
+Geçersiz durumların tip sistemiyle engellenebildiği yerlerde özel alanlar ve doğrulanmış yeni tipler
+kullanılır. Geçersiz dış girdi, desteklenmeyen seçenek veya normal çalışma hatası nedeniyle kütüphane
+kasıtlı olarak paniklemez. Bellek tükenmesi, yığın taşması, bağımlılık davranışları ya da bozulan bir
+iç değişmez gibi süreç düzeyindeki durumlar bu garantinin dışındadır.
+
+Özet yaklaşım: girdiyi sınırda doğrula, geçerli tipe dönüştür, çekirdek işlemleri mümkün olduğunca
+hatasız tut.
+
+## Örnekler
+
+### Kodlama
+
 ```rust
-extern crate barcoders;
+use barcoders::sym::ean13::EAN13;
 
-use barcoders::sym::ean13::*;
+fn main() -> barcoders::error::Result<()> {
+    // Her kurucu kodlanacak metni doğrular; kurallar barkod türüne göre değişir.
+    let barcode = EAN13::new("593456661897")?;
 
-// Each encoder accepts a String to be encoded. Valid data is barcode-specific
-// and thus constructors return an Result<T, barcoders::error::Error>.
-let barcode = EAN13::new("593456661897").unwrap();
-
-// The `encode` method returns a Vec<u8> of the binary representation of the
-// generated barcode. This is useful if you want to add your own generator.
-let encoded: Vec<u8> = barcode.encode();
+    // `encode`, barkodun ikili gösterimini döndürür ve özel üreteçlerde kullanılabilir.
+    let encoded: Vec<u8> = barcode.encode();
+    println!("{encoded:?}");
+    Ok(())
+}
 ```
 
-### Image (GIF, WEBP, PNG) generation
-```rust
-extern crate barcoders;
+### Görüntü üretimi (GIF, WEBP, PNG)
 
-use barcoders::sym::code39::*;
-use barcoders::generators::image::*;
-use std::io::prelude::*;
-use std::io::BufWriter;
+```rust
+use barcoders::generators::image::Image;
+use barcoders::sym::code39::Code39;
 use std::fs::File;
-use std::path::Path;
+use std::io::{BufWriter, Write};
 
-let barcode = Code39::new("1ISTHELONELIESTNUMBER").unwrap();
-let png = Image::png(80); // You must specify the height in pixels.
-let encoded = barcode.encode();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let barcode = Code39::new("1ISTHELONELIESTNUMBER")?;
+    let png = Image::png(80); // Yüksekliği piksel cinsinden belirtin.
+    let bytes = png.generate(barcode.encode())?;
 
-// Image generators return a Result<Vec<u8>, barcoders::error::Error) of encoded bytes.
-let bytes = png.generate(&encoded[..]).unwrap();
-
-// Which you can then save to disk.
-let file = File::create(&Path::new("my_barcode.png")).unwrap();
-let mut writer = BufWriter::new(file);
-writer.write(&bytes[..]).unwrap();
-
-// Generated file ↓ ↓ ↓
+    // Kodlanmış görüntüyü diske kaydedin.
+    let file = File::create("my_barcode.png")?;
+    let mut writer = BufWriter::new(file);
+    writer.write_all(&bytes)?;
+    Ok(())
+}
 ```
+
+Üretilen dosya:
+
 ![Code 39: 1ISTHELONELIESTNUMBER](/media/code39_1istheloneliestnumber.png?raw=true "Code 39: 1ISTHELONELIESTNUMBER")
 
-You can also request an [image::RgbaImage](http://www.piston.rs/image/image/type.RgbaImage.html), which you can manipulate yourself:
-```rust
-let barcode = Code39::new("BEELZEBUB").unwrap();
-let buffer = Image::image_buffer(100);
-let encoded = barcode.encode();
-let img = buffer.generate_buffer(&encoded[..]).unwrap();
-
-// Manipulate and save the image here...
-```
-
-You may also specify the barcode x-dimension, rotation, background/foreground colors and opacity by specifying the struct fields:
-```rust
-let gif = Image::GIF{height: 80,
-                     xdim: 1,
-                     rotation: Rotation::Zero,
-                     // Using non black/white colors is generally not recommended by most vendors, but barcoders makes it possible.
-                     foreground: Color::new([255, 0, 0, 255]),
-                     background: Color::new([0, 255, 20, 255])};
-```
-
-### SVG generation
-
-SVG is similar to the other image types, but I've supplied it as a separate feature as it doesn't require third-party dependencies.
+Görüntüyü kendiniz işlemek için bir `image::RgbaImage` da üretebilirsiniz:
 
 ```rust
-extern crate barcoders;
+use barcoders::generators::image::Image;
+use barcoders::sym::code39::Code39;
 
-use barcoders::sym::code39::*;
-use barcoders::generators::svg::*;
-use std::io::prelude::*;
-use std::io::BufWriter;
-use std::fs::File;
-use std::path::Path;
-
-let barcode = Code39::new("56DFU4A777H").unwrap();
-let svg = SVG::new(200); // You must specify the height in pixels.
-let encoded = barcode.encode();
-let data: String = svg.generate(&encoded).unwrap();
-
-let file = File::create(&Path::new("my_barcode.svg")).unwrap();
-let mut writer = BufWriter::new(file);
-writer.write(data.as_bytes()).unwrap();
-```
-
-You may also specify the barcode x-dimension, background/foreground colors and opacity by specifying the struct fields:
-```rust
-let svg = SVG{height: 80,
-              xdim: 1,
-              // Using non black/white colors is generally not recommended by most vendors, but barcoders makes it possible.
-              foreground: Color::black(),
-              background: Color::new([0, 255, 20, 255])};
-```
-
-### ASCII generation
-
-The ASCII generator is useful for testing purposes.
-
-```rust
-extern crate barcoders;
-
-use barcoders::sym::ean13::*;
-use barcoders::generators::ascii::*;
-
-let barcode = EAN13::new("750103131130").unwrap();
-let encoded = barcode.encode();
-
-let ascii = ASCII::new();
-ascii.generate(&encoded[..]);
-
-assert_eq!(ascii.unwrap(),
-"
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-# # ##   # #  ###  ##  # #  ### #### # ##  ## # # #    # ##  ## ##  ## #    # ###  # ### #  # #
-".trim());
-```
-
-
-### JSON generation
-
-This may be useful for passing encoded data to third-party systems in a conventional format.
-
-```rust
-extern crate barcoders;
-
-use barcoders::sym::codabar::*;
-use barcoders::generators::json::*;
-
-let codabar = Codabar::new("A98B").unwrap();
-let json = JSON::new();
-let generated = json.generate(&codabar.encode()[..]);
-
-assert_eq!(generated.unwrap(),
-"
-{
- \"height\": 10,
- \"xdim\": 1,
- \"encoding\": [1,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1,0,1,0,0,1,1,0,1,0,1,0,1,0,1,0,0,1,0,0,1,1]
+fn main() -> barcoders::error::Result<()> {
+    let barcode = Code39::new("BEELZEBUB")?;
+    let image = Image::image_buffer(100).generate_buffer(barcode.encode())?;
+    println!("{} × {}", image.width(), image.height());
+    Ok(())
 }
-"
 ```
 
-## Tests
+X boyutu, döndürme, ön ve arka plan renkleri ile saydamlık enum alanlarından ayarlanabilir:
 
-Note, if you want to output actual image/svg files to the filesystem for visual confirmation, set
-the `WRITE_TO_FILE` variable in the appropriate test modules.
+```rust
+use barcoders::generators::image::{Color, Image, Rotation};
 
-Full suite:
+let gif = Image::GIF {
+    height: 80,
+    xdim: 1,
+    rotation: Rotation::Zero,
+    // Siyah ve beyaz dışındaki renkler çoğu sağlayıcı tarafından önerilmez.
+    foreground: Color::new([255, 0, 0, 255]),
+    background: Color::new([0, 255, 20, 255]),
+};
 ```
-$ cargo test --features="image svg ascii json"
+
+### SVG üretimi
+
+SVG ayrı bir özelliktir ve üçüncü taraf bağımlılık gerektirmez:
+
+```rust
+use barcoders::generators::svg::SVG;
+use barcoders::sym::code39::Code39;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let barcode = Code39::new("56DFU4A777H")?;
+    let data = SVG::new(200).generate(barcode.encode())?;
+
+    let file = File::create("my_barcode.svg")?;
+    let mut writer = BufWriter::new(file);
+    writer.write_all(data.as_bytes())?;
+    Ok(())
+}
 ```
 
-Encoding only:
+### ASCII üretimi
+
+ASCII üreteci testler ve hızlı görsel denetimler için kullanışlıdır:
+
+```rust
+use barcoders::generators::ascii::ASCII;
+use barcoders::sym::ean13::EAN13;
+
+fn main() -> barcoders::error::Result<()> {
+    let barcode = EAN13::new("750103131130")?;
+    let generated = ASCII::new().generate(barcode.encode())?;
+    println!("{generated}");
+    Ok(())
+}
 ```
-$ cargo test
+
+### JSON üretimi
+
+JSON çıktısı, kodlanmış veriyi standart bir biçimde üçüncü taraf sistemlere aktarmakta kullanışlıdır:
+
+```rust
+use barcoders::generators::json::JSON;
+use barcoders::sym::codabar::Codabar;
+
+fn main() -> barcoders::error::Result<()> {
+    let barcode = Codabar::new("A98B")?;
+    let generated = JSON::new().generate(barcode.encode())?;
+    println!("{generated}");
+    Ok(())
+}
 ```
 
-## License
+## Testler
 
-Licensed under either of
+Tam özellik kümesi:
 
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+```console
+cargo test --all-features --all-targets
+```
 
-at your option.
+Yalnızca kodlama ve varsayılan özellikler:
 
-### Contribution
+```console
+cargo test
+```
 
-Unless you explicitly state otherwise, any contribution intentionally
-submitted for inclusion in the work by you, as defined in the Apache-2.0
-license, shall be dual licensed as above, without any additional terms or
-conditions.
+Görsel doğrulama amacıyla gerçek görüntü veya SVG dosyaları yazdırmak için ilgili test modülündeki
+`WRITE_TO_FILE` değerini etkinleştirin.
+
+## Lisans
+
+Bu proje tercihinize bağlı olarak aşağıdaki lisanslardan biriyle kullanılabilir:
+
+- [Apache Lisansı, Sürüm 2.0](LICENSE-APACHE)
+- [MIT Lisansı](LICENSE-MIT)
+
+### Katkı
+
+Aksini açıkça belirtmediğiniz sürece, Apache-2.0 lisansında tanımlandığı biçimiyle projeye dahil
+edilmek üzere bilerek gönderdiğiniz her katkı, ek koşul olmaksızın yukarıdaki iki lisans kapsamında
+lisanslanır.
