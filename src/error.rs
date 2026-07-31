@@ -70,7 +70,7 @@ impl Error {
         Self::Length { min, max, found }
     }
 
-    #[cfg(any(feature = "image", feature = "svg"))]
+    #[cfg(any(feature = "image", all(test, feature = "svg")))]
     pub(crate) const fn generate(target: &'static str, reason: &'static str) -> Self {
         Self::Generate { target, reason }
     }
