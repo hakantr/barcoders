@@ -12,6 +12,7 @@
 //!
 //! Özellikler:
 //! - `ascii`: ASCII çizimi olarak barkod üretir.
+//! - `gpui`: Yerel GPUI kaynak ağacı için barkod öğeleri üretir.
 //! - `json`: JSON barkod gösterimi üretir.
 //! - `image`: Görüntü tabanlı barkod üretir.
 //! - `svg`: SVG barkod gösterimi üretir.

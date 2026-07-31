@@ -19,10 +19,16 @@ exclude = [
 [features]
 default = ["ascii", "json", "svg", "std"]
 ascii = []
+gpui = ["std", "dep:gpui"]
 json = []
 svg = []
-image = ["dep:image"]
+image = ["std", "dep:image"]
 std = []
+
+[dependencies.gpui]
+path = "../gpui/crates/gpui"
+optional = true
+default-features = false
 
 [dependencies.image]
 version = "0.25.10"

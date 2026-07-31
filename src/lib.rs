@@ -32,6 +32,7 @@
 //! ilgili özelliği açıkça etkinleştirmeniz gerekir.
 //!
 //! * ASCII (özellik: `ascii`)
+//! * GPUI öğesi (özellik: `gpui`)
 //! * JSON (özellik: `json`)
 //! * SVG (özellik: `svg`)
 //! * PNG (özellik: `image`)
