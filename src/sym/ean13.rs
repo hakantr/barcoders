@@ -82,7 +82,7 @@ pub const MIDDLE_GUARD: [u8; 5] = [0, 1, 0, 1, 0];
 pub const RIGHT_GUARD: [u8; 3] = [1, 0, 1];
 
 /// EAN-13 barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EAN13(Vec<u8>);
 
 /// Bookland barkod türü.
@@ -104,8 +104,11 @@ impl EAN13 {
 
         // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = ean13.checksum_digit();
-        if digits.get(12).is_some_and(|provided| checksum != *provided) {
-            return Err(Error::Checksum);
+        if let Some(provided) = digits.get(12).filter(|provided| checksum != **provided) {
+            return Err(Error::Checksum {
+                expected: checksum,
+                found: *provided,
+            });
         }
 
         Ok(ean13)
@@ -262,7 +265,7 @@ mod tests {
     fn invalid_data_ean13() -> Result<()> {
         let ean13 = EAN13::new("1234er123412");
 
-        assert!(matches!(ean13, Err(Error::Character)));
+        assert!(matches!(ean13, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -270,7 +273,7 @@ mod tests {
     fn invalid_len_ean13() -> Result<()> {
         let ean13 = EAN13::new("1111112222222333333");
 
-        assert!(matches!(ean13, Err(Error::Length)));
+        assert!(matches!(ean13, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -278,7 +281,7 @@ mod tests {
     fn invalid_checksum_ean13() -> Result<()> {
         let ean13 = EAN13::new("8801051294881");
 
-        assert!(matches!(ean13, Err(Error::Checksum)));
+        assert!(matches!(ean13, Err(Error::Checksum { .. })));
         Ok(())
     }
 

@@ -18,12 +18,10 @@ impl EncodedBarcode {
         let modules = modules.as_ref();
 
         if modules.is_empty() {
-            return Err(Error::Length);
+            return Err(Error::length(1, None, 0));
         }
 
-        if !modules.iter().all(|module| matches!(module, 0 | 1)) {
-            return Err(Error::InvalidEncoding);
-        }
+        validate_modules(modules)?;
 
         Ok(Self {
             modules: Arc::from(modules),
@@ -57,6 +55,31 @@ impl EncodedBarcode {
             modules: self.modules(),
             offset: 0,
         }
+    }
+}
+
+pub(crate) const MAX_MODULES: usize = 100_000;
+
+pub(crate) fn validate_modules(modules: &[u8]) -> Result<()> {
+    let requested = u64::try_from(modules.len()).unwrap_or(u64::MAX);
+    let maximum = u64::try_from(MAX_MODULES).unwrap_or(u64::MAX);
+
+    if modules.len() > MAX_MODULES {
+        return Err(Error::ResourceLimit {
+            resource: "modül sayısı",
+            requested,
+            maximum,
+        });
+    }
+
+    match modules
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, module)| !matches!(module, 0 | 1))
+    {
+        Some((index, value)) => Err(Error::InvalidEncoding { index, value }),
+        None => Ok(()),
     }
 }
 
@@ -180,13 +203,20 @@ mod tests {
     fn invalid_modules_are_rejected() {
         assert!(matches!(
             EncodedBarcode::new([1, 0, 2, 1]),
-            Err(Error::InvalidEncoding)
+            Err(Error::InvalidEncoding { index: 2, value: 2 })
         ));
     }
 
     #[test]
     fn empty_encoding_is_rejected() {
-        assert!(matches!(EncodedBarcode::new([]), Err(Error::Length)));
+        assert!(matches!(
+            EncodedBarcode::new([]),
+            Err(Error::Length {
+                min: 1,
+                max: None,
+                found: 0
+            })
+        ));
     }
 
     #[test]
@@ -225,6 +255,27 @@ mod tests {
 
         assert_eq!(first.modules(), barcode.encode());
         assert_eq!(first, second);
+        assert!(Arc::ptr_eq(&first.modules, &second.modules));
         Ok(())
+    }
+
+    #[test]
+    fn excessive_module_count_is_rejected_before_rendering() {
+        let modules: Vec<u8> = core::iter::repeat_n(0, MAX_MODULES.saturating_add(1)).collect();
+
+        assert!(matches!(
+            EncodedBarcode::new(modules),
+            Err(Error::ResourceLimit {
+                resource: "modül sayısı",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn shared_encoding_is_safe_for_background_work() {
+        fn assert_send_sync_static<T: Send + Sync + 'static>() {}
+
+        assert_send_sync_static::<EncodedBarcode>();
     }
 }

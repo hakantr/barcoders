@@ -27,11 +27,12 @@ where
 /// Ondalık bir metni doğrulayarak barkod basamaklarına dönüştürür.
 pub fn parse_digits(data: &str) -> Result<Vec<u8>> {
     data.chars()
-        .map(|character| {
+        .enumerate()
+        .map(|(index, character)| {
             character
                 .to_digit(10)
                 .and_then(|digit| u8::try_from(digit).ok())
-                .ok_or(Error::Character)
+                .ok_or_else(|| Error::character(Some(character), Some(index)))
         })
         .collect()
 }

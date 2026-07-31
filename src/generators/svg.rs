@@ -24,7 +24,7 @@
 //! ```
 
 use crate::error::{Error, Result};
-use crate::generators::validate_barcode;
+use crate::generators::{validate_barcode, validate_output_bytes};
 #[cfg(not(feature = "std"))]
 use alloc::{
     format,
@@ -171,14 +171,35 @@ impl SVG {
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
         let barcode = barcode.as_ref();
         validate_barcode(barcode)?;
-        let barcode_len = u32::try_from(barcode.len()).map_err(|_| Error::Dimension)?;
-        let width = barcode_len.checked_mul(self.xdim).ok_or(Error::Dimension)?;
-        let mut rects = String::new();
+        if self.height == 0 {
+            return Err(Error::dimension("SVG yüksekliği sıfır olamaz"));
+        }
+        if self.xdim == 0 {
+            return Err(Error::dimension("SVG modül genişliği sıfır olamaz"));
+        }
+
+        let barcode_len = u32::try_from(barcode.len())
+            .map_err(|_| Error::dimension("SVG modül sayısı u32 aralığını aşıyor"))?;
+        let width = barcode_len
+            .checked_mul(self.xdim)
+            .ok_or_else(|| Error::dimension("SVG genişliği u32 aralığını aşıyor"))?;
+        let bar_count = barcode.iter().filter(|digit| **digit == 1).count();
+        let estimated_size = bar_count
+            .checked_mul(128)
+            .and_then(|size| size.checked_add(512))
+            .ok_or_else(|| Error::dimension("SVG çıktı tahmini usize aralığını aşıyor"))?;
+        let requested = u64::try_from(estimated_size)
+            .map_err(|_| Error::dimension("SVG çıktı tahmini u64 aralığını aşıyor"))?;
+        validate_output_bytes(requested)?;
+        let mut rects = String::with_capacity(estimated_size);
 
         for (index, &digit) in barcode.iter().enumerate() {
             if digit == 1 {
-                let index = u32::try_from(index).map_err(|_| Error::Dimension)?;
-                let offset = index.checked_mul(self.xdim).ok_or(Error::Dimension)?;
+                let index = u32::try_from(index)
+                    .map_err(|_| Error::dimension("SVG modül konumu u32 aralığını aşıyor"))?;
+                let offset = index.checked_mul(self.xdim).ok_or_else(|| {
+                    Error::dimension("SVG dikdörtgen konumu u32 aralığını aşıyor")
+                })?;
                 rects.push_str(self.rect(digit, offset, self.xdim).as_str());
             }
         }
@@ -230,7 +251,7 @@ mod tests {
         let mut writer = BufWriter::new(path);
         writer
             .write_all(data.as_bytes())
-            .map_err(|_| Error::Generate)
+            .map_err(|_| Error::generate("test dosyası", "SVG verisi dosyaya yazılamadı"))
     }
 
     #[cfg(not(feature = "std"))]
@@ -241,7 +262,8 @@ mod tests {
     #[cfg(feature = "std")]
     fn open_file(name: &'static str) -> Result<File> {
         let path = format!("{TEST_DATA_BASE}/{name}");
-        File::create(Path::new(path.as_str())).map_err(|_| Error::Generate)
+        File::create(Path::new(path.as_str()))
+            .map_err(|_| Error::generate("test dosyası", "SVG dosyası oluşturulamadı"))
     }
 
     #[test]
@@ -434,7 +456,7 @@ mod tests {
     fn rejects_dimension_overflow() -> Result<()> {
         let generated = SVG::new(1).xdim(u32::MAX).generate([0, 1]);
 
-        assert!(matches!(generated, Err(Error::Dimension)));
+        assert!(matches!(generated, Err(Error::Dimension { .. })));
         Ok(())
     }
 }

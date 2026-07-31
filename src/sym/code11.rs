@@ -32,7 +32,7 @@ const GUARD: [u8; 7] = [1, 0, 1, 1, 0, 0, 1];
 const SEPARATOR: [u8; 1] = [0];
 
 /// Code11 barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Code11(Vec<char>);
 
 /// USD-8 barkod türü.
@@ -165,7 +165,7 @@ mod tests {
     fn invalid_length_code11() -> Result<()> {
         let code11 = Code11::new("");
 
-        assert!(matches!(code11, Err(Error::Length)));
+        assert!(matches!(code11, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -173,7 +173,7 @@ mod tests {
     fn invalid_data_code11() -> Result<()> {
         let code11 = Code11::new("NOTDIGITS");
 
-        assert!(matches!(code11, Err(Error::Character)));
+        assert!(matches!(code11, Err(Error::Character { .. })));
         Ok(())
     }
 

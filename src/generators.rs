@@ -23,7 +23,14 @@
     feature = "svg",
     all(feature = "image", feature = "std")
 ))]
-use crate::error::{Error, Result};
+use crate::encoding::validate_modules;
+#[cfg(any(
+    feature = "ascii",
+    feature = "json",
+    feature = "svg",
+    all(feature = "image", feature = "std")
+))]
+use crate::error::Result;
 
 #[cfg(any(
     feature = "ascii",
@@ -32,10 +39,22 @@ use crate::error::{Error, Result};
     all(feature = "image", feature = "std")
 ))]
 pub(crate) fn validate_barcode(barcode: &[u8]) -> Result<()> {
-    if barcode.iter().all(|bit| matches!(bit, 0 | 1)) {
-        Ok(())
+    validate_modules(barcode)
+}
+
+#[cfg(any(feature = "ascii", feature = "image", feature = "svg"))]
+pub(crate) const MAX_OUTPUT_BYTES: u64 = 64 * 1024 * 1024;
+
+#[cfg(any(feature = "ascii", feature = "image", feature = "svg"))]
+pub(crate) fn validate_output_bytes(requested: u64) -> Result<()> {
+    if requested > MAX_OUTPUT_BYTES {
+        Err(crate::error::Error::ResourceLimit {
+            resource: "çıktı baytı",
+            requested,
+            maximum: MAX_OUTPUT_BYTES,
+        })
     } else {
-        Err(Error::InvalidEncoding)
+        Ok(())
     }
 }
 

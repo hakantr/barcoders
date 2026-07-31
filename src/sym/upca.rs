@@ -51,7 +51,7 @@ pub const MIDDLE_GUARD: [u8; 5] = [0, 1, 0, 1, 0];
 pub const RIGHT_GUARD: [u8; 3] = [1, 0, 1];
 
 /// UPC-A barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UPCA(Vec<u8>);
 
 impl UPCA {
@@ -65,8 +65,11 @@ impl UPCA {
 
         // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = upca.checksum_digit();
-        if digits.get(11).is_some_and(|provided| checksum != *provided) {
-            return Err(Error::Checksum);
+        if let Some(provided) = digits.get(11).filter(|provided| checksum != **provided) {
+            return Err(Error::Checksum {
+                expected: checksum,
+                found: *provided,
+            });
         }
 
         Ok(upca)
@@ -185,7 +188,7 @@ mod tests {
     fn invalid_data_upca() -> Result<()> {
         let upca = UPCA::new("012345612a45");
 
-        assert!(matches!(upca, Err(Error::Character)));
+        assert!(matches!(upca, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -193,7 +196,7 @@ mod tests {
     fn invalid_len_upca() -> Result<()> {
         let upca = UPCA::new("1234561234589");
 
-        assert!(matches!(upca, Err(Error::Length)));
+        assert!(matches!(upca, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -201,7 +204,7 @@ mod tests {
     fn invalid_checksum_upca() -> Result<()> {
         let upca = UPCA::new("725272730705");
 
-        assert!(matches!(upca, Err(Error::Checksum)));
+        assert!(matches!(upca, Err(Error::Checksum { .. })));
         Ok(())
     }
 

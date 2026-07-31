@@ -224,7 +224,7 @@ mod tests {
     fn invalid_data_itf() -> Result<()> {
         let itf = TF::interleaved("1234er123412");
 
-        assert!(matches!(itf, Err(Error::Character)));
+        assert!(matches!(itf, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -232,7 +232,7 @@ mod tests {
     fn invalid_data_stf() -> Result<()> {
         let stf = TF::standard("WORDUP");
 
-        assert!(matches!(stf, Err(Error::Character)));
+        assert!(matches!(stf, Err(Error::Character { .. })));
         Ok(())
     }
 

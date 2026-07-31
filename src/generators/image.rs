@@ -22,7 +22,7 @@
 //! Daha fazla örnek için README belgesine bakın.
 
 use crate::error::{Error, Result};
-use crate::generators::validate_barcode;
+use crate::generators::{validate_barcode, validate_output_bytes};
 use image::{
     DynamicImage::{self, ImageRgba8},
     ImageBuffer, ImageFormat, Rgba,
@@ -155,20 +155,24 @@ impl Image {
 
     /// Verilen barkodu üretir; başarı durumunda kodlanmış baytları döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<Vec<u8>> {
-        let format = match *self {
-            Image::GIF { .. } => ImageFormat::Gif,
-            Image::PNG { .. } => ImageFormat::Png,
-            Image::WEBP { .. } => ImageFormat::WebP,
-            _ => return Err(Error::Generate),
+        let (format, target) = match *self {
+            Image::GIF { .. } => (ImageFormat::Gif, "GIF"),
+            Image::PNG { .. } => (ImageFormat::Png, "PNG"),
+            Image::WEBP { .. } => (ImageFormat::WebP, "WEBP"),
+            _ => {
+                return Err(Error::generate(
+                    "görüntü tamponu",
+                    "bayt üretimi yerine generate_buffer kullanılmalı",
+                ));
+            }
         };
 
         let mut bytes: Vec<u8> = vec![];
         let img = self.place_pixels(&barcode)?;
 
-        match img.write_to(&mut Cursor::new(&mut bytes), format) {
-            Ok(_) => Ok(bytes),
-            _ => Err(Error::Generate),
-        }
+        img.write_to(&mut Cursor::new(&mut bytes), format)
+            .map_err(|_| Error::generate(target, "görüntü kodlayıcısı çıktıyı yazamadı"))?;
+        Ok(bytes)
     }
 
     /// Verilen barkodu bir `image::ImageBuffer` içine üretir; başarı durumunda görüntü tamponunu
@@ -190,13 +194,25 @@ impl Image {
             {height: h, xdim: x, rotation: r, background: b, foreground: f} => (x, h, r, b.to_rgba(), f.to_rgba()),
             GIF, PNG, WEBP, ImageBuffer
         );
-        let barcode_len = u32::try_from(barcode.len()).map_err(|_| Error::Dimension)?;
-        let width = barcode_len.checked_mul(xdim).ok_or(Error::Dimension)?;
+        if height == 0 {
+            return Err(Error::dimension("görüntü yüksekliği sıfır olamaz"));
+        }
+        if xdim == 0 {
+            return Err(Error::dimension("görüntü modül genişliği sıfır olamaz"));
+        }
+
+        let barcode_len = u32::try_from(barcode.len())
+            .map_err(|_| Error::dimension("modül sayısı u32 aralığını aşıyor"))?;
+        let width = barcode_len
+            .checked_mul(xdim)
+            .ok_or_else(|| Error::dimension("görüntü genişliği u32 aralığını aşıyor"))?;
         let channel_count = u64::from(width)
             .checked_mul(u64::from(height))
             .and_then(|pixels| pixels.checked_mul(4))
-            .ok_or(Error::Dimension)?;
-        usize::try_from(channel_count).map_err(|_| Error::Dimension)?;
+            .ok_or_else(|| Error::dimension("RGBA kanal sayısı u64 aralığını aşıyor"))?;
+        validate_output_bytes(channel_count)?;
+        usize::try_from(channel_count)
+            .map_err(|_| Error::dimension("RGBA kanal sayısı usize aralığını aşıyor"))?;
         let mut buffer = ImageBuffer::new(width, height);
 
         for y in 0..height {
@@ -204,12 +220,15 @@ impl Image {
                 let c = if b == 0 { bg } else { fg };
 
                 for p in 0..xdim {
-                    let index = u32::try_from(i).map_err(|_| Error::Dimension)?;
+                    let index = u32::try_from(i)
+                        .map_err(|_| Error::dimension("modül konumu u32 aralığını aşıyor"))?;
                     let x = index
                         .checked_mul(xdim)
                         .and_then(|offset| offset.checked_add(p))
-                        .ok_or(Error::Dimension)?;
-                    let pixel = buffer.get_pixel_mut_checked(x, y).ok_or(Error::Dimension)?;
+                        .ok_or_else(|| Error::dimension("piksel konumu u32 aralığını aşıyor"))?;
+                    let pixel = buffer.get_pixel_mut_checked(x, y).ok_or_else(|| {
+                        Error::dimension("hesaplanan piksel görüntü sınırlarının dışında")
+                    })?;
                     *pixel = c;
                 }
             }
@@ -251,18 +270,21 @@ mod tests {
 
     fn open_file(name: &'static str) -> Result<File> {
         let path = format!("{TEST_DATA_BASE}/{name}");
-        File::create(Path::new(path.as_str())).map_err(|_| Error::Generate)
+        File::create(Path::new(path.as_str()))
+            .map_err(|_| Error::generate("test dosyası", "dosya oluşturulamadı"))
     }
 
     fn write_file(bytes: &[u8], file: &'static str) -> Result<()> {
         let path = open_file(file)?;
         let mut writer = BufWriter::new(path);
-        writer.write_all(bytes).map_err(|_| Error::Generate)
+        writer
+            .write_all(bytes)
+            .map_err(|_| Error::generate("test dosyası", "baytlar dosyaya yazılamadı"))
     }
 
     fn assert_png(generator: Image, barcode: &[u8], generated: &[u8]) -> Result<()> {
         let decoded = image::load_from_memory_with_format(generated, ImageFormat::Png)
-            .map_err(|_| Error::Generate)?
+            .map_err(|_| Error::generate("PNG testi", "üretilen görüntü çözülemedi"))?
             .to_rgba8();
         let expected = generator.generate_buffer(barcode)?;
 
@@ -1120,7 +1142,30 @@ mod tests {
             background: Color::white(),
         };
 
-        assert!(matches!(img.generate_buffer([0, 1]), Err(Error::Dimension)));
+        assert!(matches!(
+            img.generate_buffer([0, 1]),
+            Err(Error::Dimension { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_excessive_image_before_allocating() -> Result<()> {
+        let img = Image::PNG {
+            height: 10_000,
+            xdim: 1_000,
+            rotation: Rotation::Zero,
+            foreground: Color::black(),
+            background: Color::white(),
+        };
+
+        assert!(matches!(
+            img.generate_buffer([0, 1]),
+            Err(Error::ResourceLimit {
+                resource: "çıktı baytı",
+                ..
+            })
+        ));
         Ok(())
     }
 }

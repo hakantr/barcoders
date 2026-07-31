@@ -10,7 +10,7 @@ use core::ops::Range;
 use helpers::{Vec, vec};
 
 /// EAN-8 barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EAN8(Vec<u8>);
 
 impl EAN8 {
@@ -24,8 +24,11 @@ impl EAN8 {
 
         // Sağlama basamağı verilmişse doğruluğunu denetle.
         let checksum = ean8.checksum_digit();
-        if digits.get(7).is_some_and(|provided| checksum != *provided) {
-            return Err(Error::Checksum);
+        if let Some(provided) = digits.get(7).filter(|provided| checksum != **provided) {
+            return Err(Error::Checksum {
+                expected: checksum,
+                found: *provided,
+            });
         }
 
         Ok(ean8)
@@ -164,7 +167,7 @@ mod tests {
     fn invalid_data_ean8() -> Result<()> {
         let ean8 = EAN8::new("1234er1");
 
-        assert!(matches!(ean8, Err(Error::Character)));
+        assert!(matches!(ean8, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -172,7 +175,7 @@ mod tests {
     fn invalid_len_ean8() -> Result<()> {
         let ean8 = EAN8::new("1111112222222333333");
 
-        assert!(matches!(ean8, Err(Error::Length)));
+        assert!(matches!(ean8, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -180,7 +183,7 @@ mod tests {
     fn invalid_checksum_ean8() -> Result<()> {
         let ean8 = EAN8::new("88023020");
 
-        assert!(matches!(ean8, Err(Error::Checksum)));
+        assert!(matches!(ean8, Err(Error::Checksum { .. })));
         Ok(())
     }
 

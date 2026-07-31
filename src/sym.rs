@@ -42,16 +42,23 @@ trait Parse {
     fn parse(data: &str) -> Result<&str, Error> {
         let valid_chars = Self::valid_chars();
         let valid_len = Self::valid_len();
-        let data_len = u32::try_from(data.len()).map_err(|_| Error::Length)?;
+        let data_len = data.chars().count();
+        let min = usize::try_from(valid_len.start)
+            .map_err(|_| Error::dimension("en kısa girdi uzunluğu usize aralığına sığmıyor"))?;
+        let max = usize::try_from(valid_len.end)
+            .map_err(|_| Error::dimension("en uzun girdi uzunluğu usize aralığına sığmıyor"))?;
 
-        if data_len < valid_len.start || data_len > valid_len.end {
-            return Err(Error::Length);
+        if data_len < min || data_len > max {
+            return Err(Error::length(min, Some(max), data_len));
         }
 
-        let bad_char = data.chars().find(|c| !valid_chars.contains(c));
+        let bad_char = data
+            .chars()
+            .enumerate()
+            .find(|(_, character)| !valid_chars.contains(character));
 
         match bad_char {
-            Some(_) => Err(Error::Character),
+            Some((index, character)) => Err(Error::character(Some(character), Some(index))),
             None => Ok(data),
         }
     }

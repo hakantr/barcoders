@@ -247,7 +247,10 @@ mod tests {
     fn rejects_non_binary_encoding() -> Result<()> {
         let generated = JSON::new().generate([0, 2, 1]);
 
-        assert!(matches!(generated, Err(Error::InvalidEncoding)));
+        assert!(matches!(
+            generated,
+            Err(Error::InvalidEncoding { index: 1, value: 2 })
+        ));
         Ok(())
     }
 }

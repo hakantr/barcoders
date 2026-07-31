@@ -78,7 +78,7 @@ impl EANSUPP {
                 [first, second, third, fourth, fifth] => Ok(EANSUPP::EAN5(EAN5([
                     *first, *second, *third, *fourth, *fifth,
                 ]))),
-                _ => Err(Error::Length),
+                _ => Err(Error::length(2, Some(5), digits.len())),
             }
         })
     }
@@ -223,7 +223,7 @@ mod tests {
     fn invalid_data_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("AT");
 
-        assert!(matches!(ean2, Err(Error::Character)));
+        assert!(matches!(ean2, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -231,7 +231,7 @@ mod tests {
     fn invalid_len_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("123");
 
-        assert!(matches!(ean2, Err(Error::Length)));
+        assert!(matches!(ean2, Err(Error::Length { .. })));
         Ok(())
     }
 

@@ -61,7 +61,7 @@ const CHARS: [(char, [u8; 12]); 43] = [
 const GUARD: [u8; 12] = [1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1];
 
 /// Code39 barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Code39 {
     data: Vec<char>,
     /// Sağlama basamağının kodlanıp kodlanmayacağını belirtir.
@@ -193,7 +193,7 @@ mod tests {
     fn invalid_data_code39() -> Result<()> {
         let code39 = Code39::new("1212s");
 
-        assert!(matches!(code39, Err(Error::Character)));
+        assert!(matches!(code39, Err(Error::Character { .. })));
         Ok(())
     }
 
@@ -201,7 +201,7 @@ mod tests {
     fn invalid_len_code39() -> Result<()> {
         let code39 = Code39::new("");
 
-        assert!(matches!(code39, Err(Error::Length)));
+        assert!(matches!(code39, Err(Error::Length { .. })));
         Ok(())
     }
 

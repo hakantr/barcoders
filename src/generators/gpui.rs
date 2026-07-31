@@ -22,7 +22,7 @@ impl GPUI {
     /// Verilen mantıksal piksel yüksekliğiyle yeni bir GPUI üreteci oluşturur.
     pub fn new(height: u32) -> Result<Self> {
         if height == 0 {
-            return Err(Error::Dimension);
+            return Err(Error::dimension("GPUI barkod yüksekliği sıfır olamaz"));
         }
 
         Ok(Self {
@@ -68,12 +68,15 @@ impl GPUI {
 
     /// Önceden doğrulanmış gösterimden GPUI barkod öğesi üretir.
     pub fn generate_encoded(self, barcode: EncodedBarcode) -> Result<impl IntoElement + Styled> {
-        let quiet_zone = usize::try_from(self.quiet_zone).map_err(|_| Error::Dimension)?;
-        let quiet_modules = quiet_zone.checked_mul(2).ok_or(Error::Dimension)?;
+        let quiet_zone = usize::try_from(self.quiet_zone)
+            .map_err(|_| Error::dimension("GPUI sessiz alanı usize aralığını aşıyor"))?;
+        let quiet_modules = quiet_zone
+            .checked_mul(2)
+            .ok_or_else(|| Error::dimension("GPUI sessiz alan toplamı usize aralığını aşıyor"))?;
         let total_modules = barcode
             .len()
             .checked_add(quiet_modules)
-            .ok_or(Error::Dimension)?;
+            .ok_or_else(|| Error::dimension("GPUI toplam modül sayısı usize aralığını aşıyor"))?;
         let background = self.background;
         let foreground = self.foreground;
 
@@ -98,6 +101,7 @@ impl GPUI {
             },
         )
         .w_full()
+        .min_w(px(total_modules as f32))
         .h(px(self.height as f32)))
     }
 }
@@ -143,7 +147,7 @@ mod tests {
 
     #[test]
     fn zero_height_is_rejected() {
-        assert!(matches!(GPUI::new(0), Err(Error::Dimension)));
+        assert!(matches!(GPUI::new(0), Err(Error::Dimension { .. })));
     }
 
     #[test]
@@ -157,7 +161,7 @@ mod tests {
     fn module_width_uses_whole_device_pixels() -> Result<()> {
         let bounds = Bounds::new(point(px(0.0), px(0.0)), size(px(120.0), px(80.0)));
         let Some(layout) = calculate_layout(bounds, 30, 5, 1.25) else {
-            return Err(Error::Dimension);
+            return Err(Error::dimension("GPUI test yerleşimi üretilemedi"));
         };
         let device_width = layout.module_width.as_f32() * 1.25;
 

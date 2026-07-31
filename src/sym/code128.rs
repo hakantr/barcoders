@@ -234,7 +234,7 @@ const TERM: [u8; 2] = [1, 1];
 /// Ek bilgi için [modül] belgelerine bakın.
 ///
 /// [modül]: crate::sym::code128
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Code128(Vec<Unit>);
 
 impl Unit {
@@ -249,7 +249,7 @@ impl CharacterSet {
             'À' => Ok(CharacterSet::A),
             'Ɓ' => Ok(CharacterSet::B),
             'Ć' => Ok(CharacterSet::C),
-            _ => Err(Error::Character),
+            _ => Err(Error::character(Some(c), None)),
         }
     }
 
@@ -258,7 +258,7 @@ impl CharacterSet {
             CharacterSet::A => UnitKind::A,
             CharacterSet::B => UnitKind::B,
             CharacterSet::C => UnitKind::C,
-            CharacterSet::None => return Err(Error::Character),
+            CharacterSet::None => return Err(Error::character(None, None)),
         };
         Ok(Unit { kind, index: n })
     }
@@ -268,7 +268,7 @@ impl CharacterSet {
             CharacterSet::A => Ok(0),
             CharacterSet::B => Ok(1),
             CharacterSet::C => Ok(2),
-            CharacterSet::None => Err(Error::Character),
+            CharacterSet::None => Err(Error::character(None, None)),
         }
     }
 
@@ -280,7 +280,7 @@ impl CharacterSet {
             .position(|character| character.0.get(p).is_some_and(|value| *value == s))
         {
             Some(i) => self.unit(i),
-            None => Err(Error::Character),
+            None => Err(Error::character(s.chars().next(), None)),
         }
     }
 }
@@ -290,8 +290,9 @@ impl Code128 {
     /// Girdinin çözümlenme sonucunu `Result<Code128, Error>` olarak döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<Code128> {
         let data = data.as_ref();
-        if data.len() < 2 {
-            return Err(Error::Length);
+        let data_len = data.chars().count();
+        if data_len < 2 {
+            return Err(Error::length(2, None, data_len));
         }
 
         Code128::parse(data.chars().collect()).map(Code128)
@@ -303,7 +304,7 @@ impl Code128 {
         let mut char_set = CharacterSet::None;
         let mut carry: Option<char> = None;
 
-        for ch in chars {
+        for (index, ch) in chars.into_iter().enumerate() {
             match ch {
                 'À' | 'Ɓ' | 'Ć' if units.is_empty() => {
                     char_set = CharacterSet::from_char(ch)?;
@@ -314,7 +315,7 @@ impl Code128 {
                 }
                 'À' | 'Ɓ' | 'Ć' => {
                     if char_set == CharacterSet::C && carry.is_some() {
-                        return Err(Error::Character);
+                        return Err(Error::character(Some(ch), Some(index)));
                     } else {
                         let u = char_set.lookup(&ch.to_string())?;
                         units.push(u);
@@ -339,7 +340,7 @@ impl Code128 {
         }
 
         match carry {
-            Some(_) => Err(Error::Character),
+            Some(character) => Err(Error::character(Some(character), None)),
             None => Ok(units),
         }
     }
@@ -418,7 +419,7 @@ mod tests {
     fn invalid_length_code128() -> Result<()> {
         let code128_a = Code128::new("");
 
-        assert!(matches!(code128_a, Err(Error::Length)));
+        assert!(matches!(code128_a, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -428,9 +429,9 @@ mod tests {
         let code128_b = Code128::new("ÀHELLOĆ12352"); // Sonda eşleşmemiş basamak.
         let code128_c = Code128::new("HELLO"); // Karakter kümesi belirtilmemiş.
 
-        assert!(matches!(code128_a, Err(Error::Character)));
-        assert!(matches!(code128_b, Err(Error::Character)));
-        assert!(matches!(code128_c, Err(Error::Character)));
+        assert!(matches!(code128_a, Err(Error::Character { .. })));
+        assert!(matches!(code128_b, Err(Error::Character { .. })));
+        assert!(matches!(code128_c, Err(Error::Character { .. })));
         Ok(())
     }
 

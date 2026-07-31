@@ -70,7 +70,7 @@ const GUARD: [u8; 9] = [1, 0, 1, 0, 1, 1, 1, 1, 0];
 const TERMINATOR: [u8; 1] = [1];
 
 /// Code93 barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Code93(Vec<char>);
 
 impl Code93 {
@@ -192,7 +192,7 @@ mod tests {
     fn invalid_length_code93() -> Result<()> {
         let code93 = Code93::new("");
 
-        assert!(matches!(code93, Err(Error::Length)));
+        assert!(matches!(code93, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -200,7 +200,7 @@ mod tests {
     fn invalid_data_code93() -> Result<()> {
         let code93 = Code93::new("lowerCASE");
 
-        assert!(matches!(code93, Err(Error::Character)));
+        assert!(matches!(code93, Err(Error::Character { .. })));
         Ok(())
     }
 

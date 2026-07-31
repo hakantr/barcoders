@@ -91,7 +91,7 @@ impl Unit {
 }
 
 /// Codabar barkod türü.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Codabar(Vec<Unit>);
 
 impl Codabar {
@@ -101,7 +101,11 @@ impl Codabar {
         let d = Codabar::parse(data.as_ref())?;
         let units = d
             .chars()
-            .map(|character| Unit::from_char(character).ok_or(Error::Character))
+            .enumerate()
+            .map(|(index, character)| {
+                Unit::from_char(character)
+                    .ok_or_else(|| Error::character(Some(character), Some(index)))
+            })
             .collect::<Result<Vec<_>>>()?;
 
         Ok(Codabar(units))
@@ -158,7 +162,7 @@ mod tests {
     fn invalid_length_codabar() -> Result<()> {
         let codabar = Codabar::new("");
 
-        assert!(matches!(codabar, Err(Error::Length)));
+        assert!(matches!(codabar, Err(Error::Length { .. })));
         Ok(())
     }
 
@@ -166,7 +170,7 @@ mod tests {
     fn invalid_data_codabar() -> Result<()> {
         let codabar = Codabar::new("A12345G");
 
-        assert!(matches!(codabar, Err(Error::Character)));
+        assert!(matches!(codabar, Err(Error::Character { .. })));
         Ok(())
     }
 

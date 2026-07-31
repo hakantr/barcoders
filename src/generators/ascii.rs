@@ -6,7 +6,7 @@
 //! genellikle gerekmez.
 
 use crate::error::{Error, Result};
-use crate::generators::validate_barcode;
+use crate::generators::{validate_barcode, validate_output_bytes};
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::iter::repeat_n;
@@ -39,14 +39,18 @@ impl ASCII {
         }
     }
 
-    fn generate_row(&self, barcode: &[u8]) -> Result<String> {
-        let mut row = String::new();
+    fn generate_row(&self, barcode: &[u8], capacity: usize) -> Result<String> {
+        let mut row = String::with_capacity(capacity);
 
-        for &digit in barcode {
-            let character = CHARS
-                .get(usize::from(digit))
-                .copied()
-                .ok_or(Error::InvalidEncoding)?;
+        for (index, &digit) in barcode.iter().enumerate() {
+            let character =
+                CHARS
+                    .get(usize::from(digit))
+                    .copied()
+                    .ok_or(Error::InvalidEncoding {
+                        index,
+                        value: digit,
+                    })?;
             row.extend(repeat_n(character, self.xdim));
         }
 
@@ -55,10 +59,32 @@ impl ASCII {
 
     /// Verilen barkodu üretir; başarı durumunda metin çıktısını döndürür.
     pub fn generate<T: AsRef<[u8]>>(&self, barcode: T) -> Result<String> {
-        let mut output = String::new();
         let barcode = barcode.as_ref();
         validate_barcode(barcode)?;
-        let row = self.generate_row(barcode)?;
+
+        if self.height == 0 {
+            return Err(Error::dimension("ASCII yüksekliği sıfır olamaz"));
+        }
+        if self.xdim == 0 {
+            return Err(Error::dimension("ASCII modül genişliği sıfır olamaz"));
+        }
+
+        let row_width = barcode
+            .len()
+            .checked_mul(self.xdim)
+            .ok_or_else(|| Error::dimension("ASCII satır genişliği usize aralığını aşıyor"))?;
+        let rows_size = row_width
+            .checked_mul(self.height)
+            .ok_or_else(|| Error::dimension("ASCII çıktı uzunluğu usize aralığını aşıyor"))?;
+        let output_size = rows_size
+            .checked_add(self.height.saturating_sub(1))
+            .ok_or_else(|| Error::dimension("ASCII satır sonları usize aralığını aşıyor"))?;
+        let requested = u64::try_from(output_size)
+            .map_err(|_| Error::dimension("ASCII çıktı uzunluğu u64 aralığını aşıyor"))?;
+        validate_output_bytes(requested)?;
+
+        let row = self.generate_row(barcode, row_width)?;
+        let mut output = String::with_capacity(output_size);
 
         for (i, _l) in (0..self.height).enumerate() {
             output.push_str(row.as_str());
@@ -448,7 +474,29 @@ mod tests {
     fn rejects_non_binary_encoding() -> Result<()> {
         let generated = ASCII::new().generate([0, 2, 1]);
 
-        assert!(matches!(generated, Err(Error::InvalidEncoding)));
+        assert!(matches!(
+            generated,
+            Err(Error::InvalidEncoding { index: 1, value: 2 })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_excessive_output_before_allocating() -> Result<()> {
+        let maximum = usize::try_from(crate::generators::MAX_OUTPUT_BYTES)
+            .map_err(|_| Error::dimension("test sınırı usize aralığına sığmıyor"))?;
+        let generator = ASCII {
+            height: maximum,
+            xdim: 1,
+        };
+
+        assert!(matches!(
+            generator.generate([0, 1]),
+            Err(Error::ResourceLimit {
+                resource: "çıktı baytı",
+                ..
+            })
+        ));
         Ok(())
     }
 }
