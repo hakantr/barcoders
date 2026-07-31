@@ -14,36 +14,60 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  GPUI_REPOSITORY: hakantr/gpui
+  GPUI_REVISION: b460c6d21e0738374d79fa854baf4d17da221371
   RUSTFLAGS: -D warnings
 
 jobs:
   quality:
     name: Biçim, Clippy ve belgeler
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: barcoders
     steps:
-      - name: Depoyu al
+      - name: Barcoders deposunu al
         uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
 
       - name: Araç zincirini göster
         run: rustc --version --verbose
+
+      - name: GPUI'nin yalnızca path kaynağından geldiğini doğrula
+        run: >-
+          cargo metadata --format-version 1 |
+          jq -e '.packages[] |
+          select(.name == "gpui" and .source == null and
+          (.manifest_path | endswith("/gpui/crates/gpui/Cargo.toml")))' >/dev/null
 
       - name: Biçimi denetle
         run: cargo fmt --all -- --check
 
       - name: Clippy kurallarını denetle
-        run: cargo clippy --locked --all-features --all-targets -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
       - name: API belgelerini derle
-        run: cargo doc --locked --all-features --no-deps
+        run: cargo doc --all-features --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
 
       - name: Belge örneklerini sına
-        run: cargo test --locked --doc --all-features
+        run: cargo test --doc --all-features
 
   platform_tests:
     name: Rust 1.95 / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: barcoders
     strategy:
       fail-fast: false
       matrix:
@@ -52,15 +76,27 @@ jobs:
           - macos-latest
           - windows-latest
     steps:
-      - name: Depoyu al
+      - name: Barcoders deposunu al
         uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
 
       - name: Tüm özellikleri ve hedefleri sına
-        run: cargo test --locked --all-features --all-targets
+        run: cargo test --all-features --all-targets
 
   feature_checks:
     name: Özellik kapsamı / ${{ matrix.label }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: barcoders
     strategy:
       fail-fast: false
       matrix:
@@ -71,24 +107,47 @@ jobs:
             arguments: --no-default-features
           - label: no_std üreteçleri
             arguments: --no-default-features --features ascii,json,svg
-          - label: görüntü ve std
-            arguments: --no-default-features --features image,std
+          - label: görüntü stdyi etkinleştirir
+            arguments: --no-default-features --features image
+          - label: yerel GPUI stdyi etkinleştirir
+            arguments: --no-default-features --features gpui
     steps:
-      - name: Depoyu al
+      - name: Barcoders deposunu al
         uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
 
       - name: Özellik birleşimini denetle
-        run: cargo check --locked --lib ${{ matrix.arguments }}
+        run: cargo check --lib ${{ matrix.arguments }}
 
   current_stable:
     name: Güncel kararlı Rust
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: barcoders
     steps:
-      - name: Depoyu al
+      - name: Barcoders deposunu al
         uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
 
       - name: Güncel kararlı araç zincirini kur
         run: rustup update stable --no-self-update
 
       - name: Güncel kararlı Rust ile sına
-        run: cargo +stable test --locked --all-features --all-targets
+        run: cargo +stable test --all-features --all-targets

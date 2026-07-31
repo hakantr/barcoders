@@ -24,15 +24,36 @@ concurrency:
   group: security-audit-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+  GPUI_REPOSITORY: hakantr/gpui
+  GPUI_REVISION: b460c6d21e0738374d79fa854baf4d17da221371
+
 jobs:
   security_audit:
     name: RustSec güvenlik denetimi
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: barcoders
     steps:
-      - name: Depoyu al
+      - name: Barcoders deposunu al
         uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
+
+      - name: Denetim kilit dosyasını üret
+        run: cargo generate-lockfile
 
       - name: Bilinen güvenlik açıklarını denetle
         uses: rustsec/audit-check@v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: barcoders

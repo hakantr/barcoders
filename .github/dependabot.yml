@@ -1,19 +1,8 @@
 version: 2
 
 updates:
-  - package-ecosystem: cargo
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: Europe/Istanbul
-    open-pull-requests-limit: 5
-    groups:
-      rust-dependencies:
-        patterns:
-          - "*"
-
+  # Cargo bağımlılıkları, repo dışında tutulan ../gpui path bağımlılığı nedeniyle RustSec işinde
+  # denetlenir. Dependabot yalnız başına kardeş depoyu alamadığı için bu ekosistem burada kapalıdır.
   - package-ecosystem: github-actions
     directory: /
     schedule:
