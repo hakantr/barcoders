@@ -26,6 +26,9 @@ Kayıt türleri:
 - [eklendi] Dizinleme, `unwrap`, `expect`, açık panik ve süreçten çıkış gibi panik riski taşıyan
   kullanımları reddeden Clippy kuralları eklendi.
 - [değişti] Kaynak açıklamaları, örnekler, hata iletileri ve kullanıcı belgeleri Türkçeleştirildi.
+- [değişti] CI kapsamı Rust 1.95, güncel kararlı Rust, Linux, macOS, Windows, özellik birleşimleri,
+  rustfmt, Clippy ve rustdoc denetimlerini içerecek biçimde genişletildi.
+- [eklendi] RustSec, GitHub bağımlılık incelemesi ve haftalık Dependabot güncellemeleri eklendi.
 
 ### v2.0.0 (2024-04-04)
 

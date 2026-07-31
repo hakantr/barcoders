@@ -1,0 +1,94 @@
+name: Sürekli entegrasyon
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  quality:
+    name: Biçim, Clippy ve belgeler
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: Araç zincirini göster
+        run: rustc --version --verbose
+
+      - name: Biçimi denetle
+        run: cargo fmt --all -- --check
+
+      - name: Clippy kurallarını denetle
+        run: cargo clippy --locked --all-features --all-targets -- -D warnings
+
+      - name: API belgelerini derle
+        run: cargo doc --locked --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Belge örneklerini sına
+        run: cargo test --locked --doc --all-features
+
+  platform_tests:
+    name: Rust 1.95 / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: Tüm özellikleri ve hedefleri sına
+        run: cargo test --locked --all-features --all-targets
+
+  feature_checks:
+    name: Özellik kapsamı / ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: varsayılan
+            arguments: ""
+          - label: yalnız çekirdek no_std
+            arguments: --no-default-features
+          - label: no_std üreteçleri
+            arguments: --no-default-features --features ascii,json,svg
+          - label: görüntü ve std
+            arguments: --no-default-features --features image,std
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: Özellik birleşimini denetle
+        run: cargo check --locked --lib ${{ matrix.arguments }}
+
+  current_stable:
+    name: Güncel kararlı Rust
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: Güncel kararlı araç zincirini kur
+        run: rustup update stable --no-self-update
+
+      - name: Güncel kararlı Rust ile sına
+        run: cargo +stable test --locked --all-features --all-targets

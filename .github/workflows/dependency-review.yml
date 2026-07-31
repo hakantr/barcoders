@@ -1,0 +1,24 @@
+name: Bağımlılık değişikliklerini incele
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency_review:
+    name: Yeni bağımlılıkları denetle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: Güvenlik açığı ve lisans denetimi
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
