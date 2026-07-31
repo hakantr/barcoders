@@ -7,7 +7,7 @@
 //! Barcodes of this variant should start and end with either A, B, C, or D depending on
 //! the industry.
 
-use super::helpers::{vec, Vec};
+use super::helpers::{Vec, vec};
 use crate::error::Result;
 use crate::sym::Parse;
 use core::ops::Range;

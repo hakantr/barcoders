@@ -21,9 +21,9 @@ pub mod code93;
 pub mod ean13;
 pub mod ean8;
 pub mod ean_supp;
-pub mod upca;
 mod helpers;
 pub mod tf;
+pub mod upca;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
@@ -44,9 +44,7 @@ trait Parse {
             return Err(Error::Length);
         }
 
-        let bad_char = data
-            .chars()
-            .find(|&c| !valid_chars.iter().any(|vc| *vc == c));
+        let bad_char = data.chars().find(|c| !valid_chars.contains(c));
 
         match bad_char {
             Some(_) => Err(Error::Character),

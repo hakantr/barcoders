@@ -11,6 +11,12 @@ Possible log types:
 - `[fixed]` for any bug fixes.
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
+### Unreleased
+
+- [changed] Updated the crate to Rust 2024 edition and pinned the toolchain/MSRV to Rust 1.95.0.
+- [removed] Support for Rust toolchains older than 1.95.0.
+- [changed] PNG tests now validate decoded dimensions and pixels instead of unstable compressed byte lengths.
+
 ### v2.0.0 (2024-04-04)
 
 - [changed] Updated image dependency from 0.22.0 to 0.25.0.

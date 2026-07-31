@@ -1,7 +1,8 @@
 [package]
 name = "barcoders"
 version = "2.0.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.95"
 authors = ["Andrew Buntine <info@bunts.io>"]
 description = "A barcode-encoding library"
 homepage = "https://github.com/buntine/barcoders"

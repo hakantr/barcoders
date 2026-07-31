@@ -101,7 +101,7 @@ pub struct SVG {
     /// The RGBA color for the foreground.
     pub background: Color,
     /// The XML namespace
-    pub xmlns: Option<String> 
+    pub xmlns: Option<String>,
 }
 
 impl SVG {
@@ -116,7 +116,7 @@ impl SVG {
             background: Color {
                 rgba: [255, 255, 255, 255],
             },
-            xmlns: None 
+            xmlns: None,
         }
     }
 
@@ -140,7 +140,7 @@ impl SVG {
 
     /// Set the background color
     pub fn background(mut self, color: Color) -> Self {
-        self.background= color;
+        self.background = color;
         self
     }
 
@@ -179,7 +179,7 @@ impl SVG {
 
         let xmlns = match &self.xmlns {
             Some(xmlns) => format!("xmlns=\"{xmlns}\" "),
-            None => "".to_string() 
+            None => "".to_string(),
         };
 
         Ok(format!(
@@ -198,19 +198,19 @@ mod tests {
     use crate::generators::svg::*;
     use crate::sym::codabar::*;
     use crate::sym::code11::*;
-    use crate::sym::code128::*;
     use crate::sym::code39::*;
     use crate::sym::code93::*;
-    use crate::sym::ean13::*;
-    use crate::sym::ean8::*;
+    use crate::sym::code128::*;
     use crate::sym::ean_supp::*;
+    use crate::sym::ean8::*;
+    use crate::sym::ean13::*;
     use crate::sym::tf::*;
     #[cfg(feature = "std")]
     use std::fs::File;
     #[cfg(feature = "std")]
-    use std::io::prelude::*;
-    #[cfg(feature = "std")]
     use std::io::BufWriter;
+    #[cfg(feature = "std")]
+    use std::io::prelude::*;
     #[cfg(feature = "std")]
     use std::path::Path;
 
@@ -221,7 +221,7 @@ mod tests {
     fn write_file(data: &str, file: &'static str) {
         let path = open_file(file);
         let mut writer = BufWriter::new(path);
-        writer.write(data.as_bytes()).unwrap();
+        writer.write_all(data.as_bytes()).unwrap();
     }
 
     #[cfg(not(feature = "std"))]
@@ -229,7 +229,7 @@ mod tests {
 
     #[cfg(feature = "std")]
     fn open_file(name: &'static str) -> File {
-        File::create(&Path::new(&format!("{}/{}", TEST_DATA_BASE, name)[..])).unwrap()
+        File::create(Path::new(&format!("{}/{}", TEST_DATA_BASE, name)[..])).unwrap()
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
             foreground: Color {
                 rgba: [0, 0, 255, 255],
             },
-            xmlns: None
+            xmlns: None,
         };
         let generated = svg.generate(&ean13.encode()[..]).unwrap();
 
@@ -280,7 +280,7 @@ mod tests {
             foreground: Color {
                 rgba: [0, 0, 255, 128],
             },
-            xmlns: None
+            xmlns: None,
         };
         let generated = svg.generate(&ean13.encode()[..]).unwrap();
 
@@ -377,7 +377,7 @@ mod tests {
             xdim: 1,
             background: Color::black(),
             foreground: Color::white(),
-            xmlns: None
+            xmlns: None,
         };
         let generated = svg.generate(&itf.encode()[..]).unwrap();
 
@@ -396,7 +396,7 @@ mod tests {
             xdim: 1,
             background: Color::black(),
             foreground: Color::white(),
-            xmlns: None
+            xmlns: None,
         };
         let generated = svg.generate(&code11.encode()[..]).unwrap();
 

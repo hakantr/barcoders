@@ -9,7 +9,7 @@
 //!   * JAN
 
 use crate::error::{Error, Result};
-use crate::sym::{helpers, Parse};
+use crate::sym::{Parse, helpers};
 use core::char;
 use core::ops::Range;
 use helpers::Vec;
@@ -250,8 +250,14 @@ mod tests {
         let bookland1 = Bookland::new("978345612345").unwrap(); // Check digit: 5
         let bookland2 = Bookland::new("978118999561").unwrap(); // Check digit: 5
 
-        assert_eq!(collapse_vec(bookland1.encode()), "10101110110001001010000101000110111001010111101010110011011011001000010101110010011101001110101");
-        assert_eq!(collapse_vec(bookland2.encode()), "10101110110001001011001100110010001001000101101010111010011101001001110101000011001101001110101");
+        assert_eq!(
+            collapse_vec(bookland1.encode()),
+            "10101110110001001010000101000110111001010111101010110011011011001000010101110010011101001110101"
+        );
+        assert_eq!(
+            collapse_vec(bookland2.encode()),
+            "10101110110001001011001100110010001001000101101010111010011101001001110101000011001101001110101"
+        );
     }
 
     #[test]
@@ -259,7 +265,13 @@ mod tests {
         let ean131 = EAN13::new("750103131130").unwrap(); // Check digit: 5
         let ean132 = EAN13::new("983465123499").unwrap(); // Check digit: 5
 
-        assert_eq!(collapse_vec(ean131.encode()), "10101100010100111001100101001110111101011001101010100001011001101100110100001011100101110100101");
-        assert_eq!(collapse_vec(ean132.encode()), "10101101110100001001110101011110111001001100101010110110010000101011100111010011101001000010101");
+        assert_eq!(
+            collapse_vec(ean131.encode()),
+            "10101100010100111001100101001110111101011001101010100001011001101100110100001011100101110100101"
+        );
+        assert_eq!(
+            collapse_vec(ean132.encode()),
+            "10101101110100001001110101011110111001001100101010110110010000101011100111010011101001000010101"
+        );
     }
 }

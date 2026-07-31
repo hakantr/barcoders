@@ -12,6 +12,8 @@ Barcoders allows you to encode valid data for a chosen barcode symbology into a 
 
 ## Installation
 
+Barcoders requires Rust 1.95.0 or newer and uses Rust 2024 edition.
+
 For encode-only functionality (e.g if you just want to translate a `String` into a `Vec<u8>` of binary digits):
 
 ```toml

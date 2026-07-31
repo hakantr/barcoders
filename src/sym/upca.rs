@@ -6,7 +6,7 @@
 //!   * UPC-A
 
 use crate::error::{Error, Result};
-use crate::sym::{helpers, Parse};
+use crate::sym::{Parse, helpers};
 use core::char;
 use core::ops::Range;
 use helpers::Vec;
@@ -42,21 +42,6 @@ pub const ENCODINGS: [[[u8; 7]; 10]; 2] = [
         [1, 0, 0, 1, 0, 0, 0],
         [1, 1, 1, 0, 1, 0, 0],
     ],
-];
-
-/// Maps parity (odd/even) for the left-side digits based on the first digit in
-/// the number system portion of the barcode data.
-const PARITY: [[usize; 5]; 10] = [
-    [0, 0, 0, 0, 0],
-    [0, 1, 0, 1, 1],
-    [0, 1, 1, 0, 1],
-    [0, 1, 1, 1, 0],
-    [1, 0, 0, 1, 1],
-    [1, 1, 0, 0, 1],
-    [1, 1, 1, 0, 0],
-    [1, 0, 1, 0, 1],
-    [1, 0, 1, 1, 0],
-    [1, 1, 0, 1, 0],
 ];
 
 /// The left-hand guard pattern.
@@ -199,7 +184,7 @@ mod tests {
 
         assert_eq!(upca.err().unwrap(), Error::Checksum)
     }
-    
+
     #[test]
     fn valid_checksum_upca() {
         let upca = UPCA::new("725272730706");
@@ -213,9 +198,17 @@ mod tests {
         let upca2 = UPCA::new("738312014094").unwrap();
         let upca3 = UPCA::new("095421076611").unwrap();
 
-        assert_eq!(collapse_vec(upca1.encode()), "10101110110010011011000100100110111011001001101010100010010000101110010100010011100101010000101");
-        assert_eq!(collapse_vec(upca2.encode()), "10101110110111101011011101111010011001001001101010111001011001101011100111001011101001011100101");
-        assert_eq!(collapse_vec(upca3.encode()), "10100011010001011011000101000110010011001100101010111001010001001010000101000011001101100110101");
+        assert_eq!(
+            collapse_vec(upca1.encode()),
+            "10101110110010011011000100100110111011001001101010100010010000101110010100010011100101010000101"
+        );
+        assert_eq!(
+            collapse_vec(upca2.encode()),
+            "10101110110111101011011101111010011001001001101010111001011001101011100111001011101001011100101"
+        );
+        assert_eq!(
+            collapse_vec(upca3.encode()),
+            "10100011010001011011000101000110010011001100101010111001010001001010000101000011001101100110101"
+        );
     }
-
 }

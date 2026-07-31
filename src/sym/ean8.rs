@@ -5,10 +5,10 @@
 
 use crate::error::{Error, Result};
 use crate::sym::ean13::{ENCODINGS, LEFT_GUARD, MIDDLE_GUARD, RIGHT_GUARD};
-use crate::sym::{helpers, Parse};
+use crate::sym::{Parse, helpers};
 use core::char;
 use core::ops::Range;
-use helpers::{vec, Vec};
+use helpers::{Vec, vec};
 
 /// The EAN-8 barcode type.
 #[derive(Debug)]

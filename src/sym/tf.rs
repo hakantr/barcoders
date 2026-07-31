@@ -8,11 +8,11 @@
 //! Most of the time you will want to use the interleaved barcode over the standard option.
 
 use crate::error::Result;
-use crate::sym::helpers;
 use crate::sym::Parse;
+use crate::sym::helpers;
 use core::char;
 use core::ops::Range;
-use helpers::{vec, Vec};
+use helpers::{Vec, vec};
 
 #[rustfmt::skip]
 const WIDTHS: [&str; 10] = [
@@ -174,42 +174,42 @@ mod tests {
 
     #[test]
     fn new_itf() {
-        let itf = TF::interleaved("12345679".to_string());
+        let itf = TF::interleaved("12345679");
 
         assert!(itf.is_ok());
     }
 
     #[test]
     fn new_stf() {
-        let stf = TF::standard("12345".to_string());
+        let stf = TF::standard("12345");
 
         assert!(stf.is_ok());
     }
 
     #[test]
     fn invalid_data_itf() {
-        let itf = TF::interleaved("1234er123412".to_string());
+        let itf = TF::interleaved("1234er123412");
 
         assert_eq!(itf.err().unwrap(), Error::Character);
     }
 
     #[test]
     fn invalid_data_stf() {
-        let stf = TF::standard("WORDUP".to_string());
+        let stf = TF::standard("WORDUP");
 
         assert_eq!(stf.err().unwrap(), Error::Character);
     }
 
     #[test]
     fn itf_raw_data() {
-        let itf = TF::interleaved("12345679".to_string()).unwrap();
+        let itf = TF::interleaved("12345679").unwrap();
 
         assert_eq!(itf.raw_data(), &[1, 2, 3, 4, 5, 6, 7, 9]);
     }
 
     #[test]
     fn itf_encode() {
-        let itf = TF::interleaved("1234567".to_string()).unwrap(); // Check digit: 0
+        let itf = TF::interleaved("1234567").unwrap(); // Check digit: 0
 
         assert_eq!(
             collapse_vec(itf.encode()),
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn stf_encode() {
-        let stf = TF::standard("1234567".to_string()).unwrap();
+        let stf = TF::standard("1234567").unwrap();
 
         assert_eq!(collapse_vec(stf.encode()), "110110101110101010111010111010101110111011101010101010111010111011101011101010101110111010101010101110111011010110".to_string());
     }

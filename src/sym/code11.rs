@@ -7,9 +7,9 @@
 //! than 10 characters, a second checksum digit (K) is appended.
 
 use crate::error::Result;
-use crate::sym::{helpers, Parse};
+use crate::sym::{Parse, helpers};
 use core::ops::Range;
-use helpers::{vec, Vec};
+use helpers::{Vec, vec};
 
 // Character -> Binary mappings for each of the allowable characters.
 // The special "full-ASCII" characters are represented with (, ), [, ].
@@ -186,6 +186,9 @@ mod tests {
     fn code11_encode_more_than_10_chars() {
         let code111 = Code11::new("1234-5678-4321").unwrap();
 
-        assert_eq!(collapse_vec(code111.encode()), "101100101101011010010110110010101011011010110101101101010011010101001101101001010110101011011011001010100101101101011011011010100110101011001");
+        assert_eq!(
+            collapse_vec(code111.encode()),
+            "101100101101011010010110110010101011011010110101101101010011010101001101101001010110101011011011001010100101101101011011011010100110101011001"
+        );
     }
 }

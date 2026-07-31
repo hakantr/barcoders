@@ -67,12 +67,12 @@ mod tests {
     use crate::generators::json::*;
     use crate::sym::codabar::*;
     use crate::sym::code11::*;
-    use crate::sym::code128::*;
     use crate::sym::code39::*;
     use crate::sym::code93::*;
-    use crate::sym::ean13::*;
-    use crate::sym::ean8::*;
+    use crate::sym::code128::*;
     use crate::sym::ean_supp::*;
+    use crate::sym::ean8::*;
+    use crate::sym::ean13::*;
     use crate::sym::tf::*;
 
     #[test]

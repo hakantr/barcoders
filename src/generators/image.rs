@@ -21,12 +21,12 @@
 //!
 //! See the README for more examples.
 
-use std::io::Cursor;
 use crate::error::{Error, Result};
 use image::{
     DynamicImage::{self, ImageRgba8},
     ImageBuffer, ImageFormat, Rgba,
 };
+use std::io::Cursor;
 
 macro_rules! image_variants {
     ( $( #[$attr:meta] $v:ident ),* ) => {
@@ -220,29 +220,39 @@ mod tests {
     use crate::generators::image::*;
     use crate::sym::codabar::*;
     use crate::sym::code11::*;
-    use crate::sym::code128::*;
     use crate::sym::code39::*;
     use crate::sym::code93::*;
-    use crate::sym::ean13::*;
-    use crate::sym::ean8::*;
+    use crate::sym::code128::*;
     use crate::sym::ean_supp::*;
+    use crate::sym::ean8::*;
+    use crate::sym::ean13::*;
     use crate::sym::tf::*;
     use std::fs::File;
-    use std::io::prelude::*;
     use std::io::BufWriter;
+    use std::io::prelude::*;
     use std::path::Path;
 
     const TEST_DATA_BASE: &str = "./target/debug";
     const WRITE_TO_FILE: bool = true;
 
     fn open_file(name: &'static str) -> File {
-        File::create(&Path::new(&format!("{}/{}", TEST_DATA_BASE, name)[..])).unwrap()
+        File::create(Path::new(&format!("{}/{}", TEST_DATA_BASE, name)[..])).unwrap()
     }
 
     fn write_file(bytes: &[u8], file: &'static str) {
         let path = open_file(file);
         let mut writer = BufWriter::new(path);
-        writer.write(bytes).unwrap();
+        writer.write_all(bytes).unwrap();
+    }
+
+    fn assert_png(generator: Image, barcode: &[u8], generated: &[u8]) {
+        let decoded = image::load_from_memory_with_format(generated, ImageFormat::Png)
+            .unwrap()
+            .to_rgba8();
+        let expected = generator.generate_buffer(barcode).unwrap();
+
+        assert_eq!(decoded.dimensions(), expected.dimensions());
+        assert_eq!(decoded.as_raw(), expected.as_raw());
     }
 
     #[test]
@@ -278,7 +288,7 @@ mod tests {
             write_file(&generated[..], "ean13.png");
         }
 
-        assert_eq!(generated.len(), 872);
+        assert_png(png, &ean13.encode(), &generated);
     }
 
     #[test]
@@ -301,7 +311,7 @@ mod tests {
             write_file(&generated[..], "ean13_90.png");
         }
 
-        assert_eq!(generated.len(), 716);
+        assert_png(png, &ean13.encode(), &generated);
     }
 
     #[test]
@@ -321,10 +331,10 @@ mod tests {
         let generated = webp.generate(&ean13.encode()[..]).unwrap();
 
         if WRITE_TO_FILE {
-           write_file(&generated[..], "ean13.webp");
-       }
+            write_file(&generated[..], "ean13.webp");
+        }
 
-       assert_eq!(generated.len(), 150);
+        assert_eq!(generated.len(), 150);
     }
 
     #[test]
@@ -392,7 +402,7 @@ mod tests {
             write_file(&generated[..], "colored_opaque_ean13.png");
         }
 
-        assert_eq!(generated.len(), 1027);
+        assert_png(png, &ean13.encode(), &generated);
     }
 
     #[test]
@@ -415,7 +425,7 @@ mod tests {
             write_file(&generated[..], "code39.png");
         }
 
-        assert_eq!(generated.len(), 716);
+        assert_png(png, &code39.encode(), &generated);
     }
 
     #[test]
@@ -484,7 +494,7 @@ mod tests {
             write_file(&generated[..], "code93.png");
         }
 
-        assert_eq!(generated.len(), 681);
+        assert_png(png, &code93.encode(), &generated);
     }
 
     #[test]
@@ -553,7 +563,7 @@ mod tests {
             write_file(&generated[..], "code11.png");
         }
 
-        assert_eq!(generated.len(), 602);
+        assert_png(png, &code11.encode(), &generated);
     }
 
     #[test]
@@ -599,7 +609,7 @@ mod tests {
             write_file(&generated[..], "codabar.png");
         }
 
-        assert_eq!(generated.len(), 681);
+        assert_png(png, &codabar.encode(), &generated);
     }
 
     #[test]
@@ -668,7 +678,7 @@ mod tests {
             write_file(&generated[..], "code128.png");
         }
 
-        assert_eq!(generated.len(), 659);
+        assert_png(png, &code128.encode(), &generated);
     }
 
     #[test]
@@ -757,7 +767,7 @@ mod tests {
             write_file(&generated[..], "ean8.png");
         }
 
-        assert_eq!(generated.len(), 692);
+        assert_png(png, &ean8.encode(), &generated);
     }
 
     #[test]
@@ -780,7 +790,7 @@ mod tests {
             write_file(&generated[..], "ean8_270.png");
         }
 
-        assert_eq!(generated.len(), 808);
+        assert_png(png, &ean8.encode(), &generated);
     }
 
     #[test]
@@ -849,7 +859,7 @@ mod tests {
             write_file(&generated[..], "ean2.png");
         }
 
-        assert_eq!(generated.len(), 485);
+        assert_png(png, &ean2.encode(), &generated);
     }
 
     #[test]
@@ -938,7 +948,7 @@ mod tests {
             write_file(&generated[..], "ift.png");
         }
 
-        assert_eq!(generated.len(), 911);
+        assert_png(png, &itf.encode(), &generated);
     }
 
     #[test]
@@ -961,7 +971,7 @@ mod tests {
             write_file(&generated[..], "sft.png");
         }
 
-        assert_eq!(generated.len(), 1131);
+        assert_png(png, &stf.encode(), &generated);
     }
 
     #[test]

@@ -8,10 +8,10 @@
 
 use crate::error::{Error, Result};
 use crate::sym::ean13::ENCODINGS;
-use crate::sym::{helpers, Parse};
+use crate::sym::{Parse, helpers};
 use core::char;
 use core::ops::Range;
-use helpers::{vec, Vec};
+use helpers::{Vec, vec};
 
 const LEFT_GUARD: [u8; 4] = [1, 0, 1, 1];
 
