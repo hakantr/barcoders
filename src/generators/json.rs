@@ -253,4 +253,19 @@ mod tests {
         ));
         Ok(())
     }
+
+    #[test]
+    fn rejects_empty_encoding() -> Result<()> {
+        let generated = JSON::new().generate([]);
+
+        assert!(matches!(
+            generated,
+            Err(Error::Length {
+                min: 1,
+                max: None,
+                found: 0
+            })
+        ));
+        Ok(())
+    }
 }

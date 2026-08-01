@@ -482,6 +482,21 @@ mod tests {
     }
 
     #[test]
+    fn rejects_empty_encoding() -> Result<()> {
+        let generated = ASCII::new().generate([]);
+
+        assert!(matches!(
+            generated,
+            Err(Error::Length {
+                min: 1,
+                max: None,
+                found: 0
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn rejects_excessive_output_before_allocating() -> Result<()> {
         let maximum = usize::try_from(crate::generators::MAX_OUTPUT_BYTES)
             .map_err(|_| Error::dimension("test sınırı usize aralığına sığmıyor"))?;

@@ -459,4 +459,19 @@ mod tests {
         assert!(matches!(generated, Err(Error::Dimension { .. })));
         Ok(())
     }
+
+    #[test]
+    fn rejects_empty_encoding() -> Result<()> {
+        let generated = SVG::new(80).generate([]);
+
+        assert!(matches!(
+            generated,
+            Err(Error::Length {
+                min: 1,
+                max: None,
+                found: 0
+            })
+        ));
+        Ok(())
+    }
 }

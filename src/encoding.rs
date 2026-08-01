@@ -17,10 +17,6 @@ impl EncodedBarcode {
     pub fn new<T: AsRef<[u8]>>(modules: T) -> Result<Self> {
         let modules = modules.as_ref();
 
-        if modules.is_empty() {
-            return Err(Error::length(1, None, 0));
-        }
-
         validate_modules(modules)?;
 
         Ok(Self {
@@ -61,6 +57,10 @@ impl EncodedBarcode {
 pub(crate) const MAX_MODULES: usize = 100_000;
 
 pub(crate) fn validate_modules(modules: &[u8]) -> Result<()> {
+    if modules.is_empty() {
+        return Err(Error::length(1, None, 0));
+    }
+
     let requested = u64::try_from(modules.len()).unwrap_or(u64::MAX);
     let maximum = u64::try_from(MAX_MODULES).unwrap_or(u64::MAX);
 
