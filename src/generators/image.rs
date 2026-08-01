@@ -206,32 +206,34 @@ impl Image {
         let width = barcode_len
             .checked_mul(xdim)
             .ok_or_else(|| Error::dimension("görüntü genişliği u32 aralığını aşıyor"))?;
-        let channel_count = u64::from(width)
+        let row_channels = u64::from(width)
+            .checked_mul(4)
+            .ok_or_else(|| Error::dimension("satır kanal sayısı u64 aralığını aşıyor"))?;
+        let channel_count = row_channels
             .checked_mul(u64::from(height))
-            .and_then(|pixels| pixels.checked_mul(4))
             .ok_or_else(|| Error::dimension("RGBA kanal sayısı u64 aralığını aşıyor"))?;
         validate_output_bytes(channel_count)?;
         usize::try_from(channel_count)
             .map_err(|_| Error::dimension("RGBA kanal sayısı usize aralığını aşıyor"))?;
-        let mut buffer = ImageBuffer::new(width, height);
+        let row_length = usize::try_from(row_channels)
+            .map_err(|_| Error::dimension("satır kanal sayısı usize aralığını aşıyor"))?;
 
-        for y in 0..height {
-            for (i, &b) in barcode.iter().enumerate() {
-                let c = if b == 0 { bg } else { fg };
+        // Barkod yalnız yatay eksende değiştiğinden tek bir satır kurulur ve tüm yüksekliğe
+        // kopyalanır.
+        let mut row: Vec<u8> = Vec::with_capacity(row_length);
 
-                for p in 0..xdim {
-                    let index = u32::try_from(i)
-                        .map_err(|_| Error::dimension("modül konumu u32 aralığını aşıyor"))?;
-                    let x = index
-                        .checked_mul(xdim)
-                        .and_then(|offset| offset.checked_add(p))
-                        .ok_or_else(|| Error::dimension("piksel konumu u32 aralığını aşıyor"))?;
-                    let pixel = buffer.get_pixel_mut_checked(x, y).ok_or_else(|| {
-                        Error::dimension("hesaplanan piksel görüntü sınırlarının dışında")
-                    })?;
-                    *pixel = c;
-                }
+        for &module in barcode {
+            let color = if module == 0 { bg } else { fg };
+
+            for _ in 0..xdim {
+                row.extend_from_slice(&color.0);
             }
+        }
+
+        let mut buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+        for line in buffer.chunks_mut(row_length) {
+            line.copy_from_slice(row.as_slice());
         }
 
         let img = ImageRgba8(buffer);
@@ -1166,6 +1168,42 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_empty_encoding() -> Result<()> {
+        assert!(matches!(
+            Image::png(80).generate_buffer([]),
+            Err(Error::Length {
+                min: 1,
+                max: None,
+                found: 0
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn every_row_repeats_the_module_pattern() -> Result<()> {
+        let img = Image::ImageBuffer {
+            height: 3,
+            xdim: 2,
+            rotation: Rotation::Zero,
+            foreground: Color::new([1, 2, 3, 4]),
+            background: Color::new([5, 6, 7, 8]),
+        };
+        let generated = img.generate_buffer([1, 0])?;
+
+        assert_eq!(generated.dimensions(), (4, 3));
+        assert_eq!(
+            generated.as_raw().as_slice(),
+            [
+                1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8, //
+                1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8, //
+                1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8,
+            ]
+        );
         Ok(())
     }
 }
