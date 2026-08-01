@@ -9,7 +9,7 @@
 use crate::error::{Error, Result};
 use crate::sym::ean13::ENCODINGS;
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 const LEFT_GUARD: [u8; 4] = [1, 0, 1, 1];
@@ -179,8 +179,8 @@ impl EANSUPP {
 
 impl Parse for EANSUPP {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
-    fn valid_len() -> Range<u32> {
-        2..5
+    fn valid_len() -> RangeInclusive<usize> {
+        2..=5
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

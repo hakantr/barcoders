@@ -11,7 +11,7 @@
 use super::helpers::{Vec, vec};
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 
 // İzin verilen 47 karakterin her biri için karakter -> ikili değer eşlemeleri.
 // Özel "tam ASCII" karakterleri (, ), [ ve ] ile temsil edilir.
@@ -163,8 +163,8 @@ impl Code93 {
 impl Parse for Code93 {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     /// Code93 barkodları değişken uzunluktadır.
-    fn valid_len() -> Range<u32> {
-        1..256
+    fn valid_len() -> RangeInclusive<usize> {
+        1..=256
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

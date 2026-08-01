@@ -8,7 +8,7 @@
 
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 // İzin verilen her karakter için karakter -> ikili değer eşlemeleri.
@@ -136,8 +136,8 @@ impl Code11 {
 impl Parse for Code11 {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     /// Code11 barkodları değişken uzunluktadır.
-    fn valid_len() -> Range<u32> {
-        1..256
+    fn valid_len() -> RangeInclusive<usize> {
+        1..=256
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

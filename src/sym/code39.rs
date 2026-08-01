@@ -7,7 +7,7 @@
 
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 // İzin verilen 43 karakterin her biri için karakter -> ikili değer eşlemeleri.
@@ -157,8 +157,8 @@ impl Code39 {
 }
 
 impl Parse for Code39 {
-    fn valid_len() -> Range<u32> {
-        1..256
+    fn valid_len() -> RangeInclusive<usize> {
+        1..=256
     }
 
     fn valid_chars() -> Vec<char> {

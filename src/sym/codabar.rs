@@ -11,7 +11,7 @@
 use super::helpers::{Vec, vec};
 use crate::error::{Error, Result};
 use crate::sym::Parse;
-use core::ops::Range;
+use core::ops::RangeInclusive;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Unit {
@@ -131,8 +131,8 @@ impl Codabar {
 impl Parse for Codabar {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     /// Codabar barkodları değişken uzunluktadır.
-    fn valid_len() -> Range<u32> {
-        1..256
+    fn valid_len() -> RangeInclusive<usize> {
+        1..=256
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

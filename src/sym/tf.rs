@@ -9,7 +9,7 @@
 use crate::error::Result;
 use crate::sym::Parse;
 use crate::sym::helpers;
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 #[rustfmt::skip]
@@ -180,8 +180,8 @@ impl TF {
 impl Parse for TF {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
     /// 2-of-5 barkodları değişken uzunluktadır.
-    fn valid_len() -> Range<u32> {
-        1..256
+    fn valid_len() -> RangeInclusive<usize> {
+        1..=256
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

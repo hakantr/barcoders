@@ -6,7 +6,7 @@
 use crate::error::{Error, Result};
 use crate::sym::ean13::{ENCODINGS, LEFT_GUARD, MIDDLE_GUARD, RIGHT_GUARD};
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 /// EAN-8 barkod türü.
@@ -131,8 +131,8 @@ impl EAN8 {
 
 impl Parse for EAN8 {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
-    fn valid_len() -> Range<u32> {
-        7..8
+    fn valid_len() -> RangeInclusive<usize> {
+        7..=8
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

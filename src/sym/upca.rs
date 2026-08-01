@@ -7,7 +7,7 @@
 
 use crate::error::{Error, Result};
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::Vec;
 
 /// UPC barkodları için kodlama eşlemeleri.
@@ -152,8 +152,8 @@ impl UPCA {
 
 impl Parse for UPCA {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
-    fn valid_len() -> Range<u32> {
-        11..12
+    fn valid_len() -> RangeInclusive<usize> {
+        11..=12
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

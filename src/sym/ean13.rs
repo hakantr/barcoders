@@ -10,7 +10,7 @@
 
 use crate::error::{Error, Result};
 use crate::sym::{Parse, helpers};
-use core::ops::Range;
+use core::ops::RangeInclusive;
 use helpers::Vec;
 
 /// EAN barkodları için kodlama eşlemeleri.
@@ -221,8 +221,8 @@ impl EAN13 {
 
 impl Parse for EAN13 {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
-    fn valid_len() -> Range<u32> {
-        12..13
+    fn valid_len() -> RangeInclusive<usize> {
+        12..=13
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.

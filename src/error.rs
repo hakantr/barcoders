@@ -75,6 +75,14 @@ impl Error {
         Self::Generate { target, reason }
     }
 
+    // Boyut hataları yalnız çizim yapan üreteçlerden doğar; çekirdek kodlama derlemesinde
+    // kullanılmaz.
+    #[cfg(any(
+        feature = "ascii",
+        feature = "gpui",
+        feature = "svg",
+        all(feature = "image", feature = "std")
+    ))]
     pub(crate) const fn dimension(reason: &'static str) -> Self {
         Self::Dimension { reason }
     }

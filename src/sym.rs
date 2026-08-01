@@ -33,22 +33,21 @@ use alloc::vec::Vec;
 
 use crate::error::Error;
 use core::iter::Iterator;
-use core::ops::Range;
+use core::ops::RangeInclusive;
 
 trait Parse {
     fn valid_chars() -> Vec<char>;
-    fn valid_len() -> Range<u32>;
+
+    /// Kabul edilen girdi uzunluklarını her iki ucu dahil olacak biçimde döndürür.
+    fn valid_len() -> RangeInclusive<usize>;
 
     fn parse(data: &str) -> Result<&str, Error> {
         let valid_chars = Self::valid_chars();
         let valid_len = Self::valid_len();
         let data_len = data.chars().count();
-        let min = usize::try_from(valid_len.start)
-            .map_err(|_| Error::dimension("en kısa girdi uzunluğu usize aralığına sığmıyor"))?;
-        let max = usize::try_from(valid_len.end)
-            .map_err(|_| Error::dimension("en uzun girdi uzunluğu usize aralığına sığmıyor"))?;
+        let (min, max) = (*valid_len.start(), *valid_len.end());
 
-        if data_len < min || data_len > max {
+        if !valid_len.contains(&data_len) {
             return Err(Error::length(min, Some(max), data_len));
         }
 
