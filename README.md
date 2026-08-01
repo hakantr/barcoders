@@ -60,6 +60,9 @@ Barcoders'ın amacı, yaygın sembolojilerin tümünü ve daha az kullanılanlar
   - Standart (STF)
 - Codabar
 
+Codabar verisi, sembolojinin gerektirdiği biçimde A, B, C veya D koruma karakterlerinden biriyle
+başlayıp bitmelidir; bu karakterler veri bölümünde kullanılamaz.
+
 ### Üreteçler
 
 - ASCII (özellik: `ascii`)
@@ -94,7 +97,8 @@ hatasız tut.
 
 Üreteçlere verilen ham ikili gösterimler en fazla 100.000 modül, bellek ayıran çıktılar ise en fazla
 64 MiB ile sınırlıdır. Bu sınırlar bellek tahsisinden önce denetlenir ve aşıldığında
-`Error::ResourceLimit` döndürülür.
+`Error::ResourceLimit` döndürülür. Boş bir gösterim çizilebilir bir barkod tanımlamadığından
+üreteçler tarafından `Error::Length` ile reddedilir.
 
 ## Örnekler
 

@@ -23,6 +23,14 @@ Kayıt türleri:
   `Eq` uyguluyor.
 - [eklendi] Ham kodlamalar 100.000 modül, bellek ayıran üreteçler 64 MiB ile sınırlandı; sınırlar
   tahsisten önce `Error::ResourceLimit` ile bildiriliyor.
+- [düzeltildi] Codabar kurucusu, sembolojinin gerektirdiği A-D koruma karakterlerini zorunlu
+  kılıyor: koruma karakteri yalnız ilk ve son konumda bulunabilir. Daha önce `Codabar::new("12345")`
+  gibi girdiler kabul edilip okunamayan barkod üretiyordu.
+- [düzeltildi] Boş ikili gösterimler tüm üreteçlerde `Error::Length` ile reddediliyor. Daha önce
+  ASCII, JSON ve SVG anlamsız çıktı üretiyor, görüntü üreteci ise sıfır genişlikli tampon kurup
+  kodlayıcıdan gelen genel bir hatayla başarısız oluyordu.
+- [düzeltildi] Görüntü üreteci barkod satırını bir kez kurup tüm yüksekliğe kopyalıyor; her piksel
+  için yinelenen sınır ve taşma denetimleri kaldırıldı.
 - [değişti] `image` ve `gpui` özellikleri ihtiyaç duydukları `std` özelliğini kendileri
   etkinleştiriyor.
 - [değişti] CI, `hakantr/gpui` deposunun `981b10eb6da5621c3ba0b456dba82609da1ab550`
@@ -56,6 +64,9 @@ Kayıt türleri:
 - `Error` için kapsamlı eşleşmelerde, gelecekte eklenecek hata durumları için genel bir kol ekleyin.
 - `EANSUPP` ve `TF` varyantlarını doğrudan ham `Vec<u8>` ile kurmak yerine kamuya açık kurucuları
   kullanın.
+- Codabar verilerini A, B, C veya D koruma karakterleriyle sarmalayın; koruma karakteri taşımayan
+  ya da veri bölümünde koruma karakteri bulunduran girdiler artık `Error::Character` döndürür.
+- Üreteçlere boş dilim vermeyin; boş gösterim artık `Error::Length` döndürür.
 - GPUI bileşenlerinde `encode()` sonucunu her render çağrısında üretmek yerine `Barcode::encoded()`
   sonucunu durum içinde saklayın.
 

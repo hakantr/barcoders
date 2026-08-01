@@ -1,12 +1,9 @@
-- YENİDEN DÜZENLEME: Ad alanlı sabitlerdeki niteleyicileri kaldır: `CODE39_CHARS` -> `CHARS`.
-- ÖZELLİK: Code11 sembolojisi.
 - PERFORMANS: `checksum_char` işlevleri özel olursa karakter yerine doğrudan kodlamayı döndürebilir;
   böylece `char_encoding` için ek arama atlanabilir (Code39 ve benzerlerine bakın).
   - YENİDEN DÜZENLEME: Bu işlevlerin tümünü özel yapıp aynı biçimde çalıştırmayı değerlendir
     (`code128` `u8`, `code39` `char` döndürüyor).
-- YENİDEN DÜZENLEME: Görüntü üretecindeki `place_pixels` işlevini sadeleştir; basit bir makro
-  kullanmayı değerlendir.
 - PERFORMANS: Kullanıcı görüntü rengini ayarlamazsa bayt tasarrufu için varsayılan olarak `Rgba8`
   yerine `Luma8` kullan.
-- YENİDEN DÜZENLEME: `Parse` içine basit bir düzenli ifade uygulayıp `valid_chars`, `valid_length`
+- YENİDEN DÜZENLEME: `Parse` içine basit bir düzenli ifade uygulayıp `valid_chars`, `valid_len`
   ve benzeri yardımcıları kaldır.
+- ÖZELLİK: Code93 tam ASCII kipini destekle.

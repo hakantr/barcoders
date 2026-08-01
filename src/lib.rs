@@ -11,15 +11,18 @@
 //! ### Sembolojiler
 //!
 //! * EAN-13
+//!   * UPC-A
 //!   * JAN
 //!   * Bookland
-//! * UPC-A
 //! * EAN-8
 //! * Ek EAN barkodları
 //!   * EAN-2
 //!   * EAN-5
+//! * Code11
+//!   * USD-8
 //! * Code39
-//! * Code128
+//! * Code93
+//! * Code128 (A, B, C)
 //! * 2-of-5
 //!   * Aralıklı (ITF)
 //!   * Standart (STF)
@@ -32,12 +35,13 @@
 //! ilgili özelliği açıkça etkinleştirmeniz gerekir.
 //!
 //! * ASCII (özellik: `ascii`)
-//! * GPUI öğesi (özellik: `gpui`)
 //! * JSON (özellik: `json`)
 //! * SVG (özellik: `svg`)
 //! * PNG (özellik: `image`)
 //! * GIF (özellik: `image`)
 //! * WEBP (özellik: `image`)
+//! * Görüntü tamponu (özellik: `image`)
+//! * Yerel GPUI `canvas` öğesi (özellik: `gpui`)
 //! * Kendi üreteciniz
 //!
 //! ## Örnekler
