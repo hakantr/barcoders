@@ -6,7 +6,8 @@
 //! Codabar ABD'de FedEx, bazı hastaneler ve fotoğraf laboratuvarları tarafından kullanılır.
 //!
 //! Bu tür barkodlar sektöre bağlı olarak A, B, C veya D karakterlerinden biriyle başlayıp
-//! bitmelidir.
+//! bitmelidir. Kurucu bu kuralı uygular: koruma karakterleri yalnız ilk ve son konumda
+//! bulunabilir, veri bölümünde kullanılamaz.
 
 use super::helpers::{Vec, vec};
 use crate::error::{Error, Result};
@@ -63,6 +64,10 @@ impl Unit {
         }
     }
 
+    fn is_guard(self) -> bool {
+        matches!(self, Unit::A | Unit::B | Unit::C | Unit::D)
+    }
+
     fn from_char(c: char) -> Option<Unit> {
         match c {
             '0' => Some(Unit::Zero),
@@ -108,7 +113,27 @@ impl Codabar {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        Codabar::validate_guards(d, units.as_slice())?;
+
         Ok(Codabar(units))
+    }
+
+    /// Barkodun A-D koruma karakterlerinden biriyle başlayıp bittiğini ve bu karakterlerin veri
+    /// bölümünde kullanılmadığını denetler.
+    fn validate_guards(data: &str, units: &[Unit]) -> Result<()> {
+        let last_index = units.len().saturating_sub(1);
+
+        for (index, unit) in units.iter().enumerate() {
+            let is_guard_position = index == 0 || index == last_index;
+
+            if unit.is_guard() == is_guard_position {
+                continue;
+            }
+
+            return Err(Error::character(data.chars().nth(index), Some(index)));
+        }
+
+        Ok(())
     }
 
     /// Barkodu kodlar.
@@ -130,9 +155,10 @@ impl Codabar {
 
 impl Parse for Codabar {
     /// Bu barkod türünün kabul ettiği geçerli veri uzunluğu aralığını döndürür.
-    /// Codabar barkodları değişken uzunluktadır.
+    /// Codabar barkodları değişken uzunluktadır; en kısa barkod iki koruma karakteri ile aradaki
+    /// tek veri karakterinden oluşur.
     fn valid_len() -> RangeInclusive<usize> {
-        1..=256
+        3..=256
     }
 
     /// Bu barkod türünde kullanılabilen geçerli karakter kümesini döndürür.
@@ -171,6 +197,44 @@ mod tests {
         let codabar = Codabar::new("A12345G");
 
         assert!(matches!(codabar, Err(Error::Character { .. })));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_guards_codabar() -> Result<()> {
+        assert!(matches!(
+            Codabar::new("12345"),
+            Err(Error::Character {
+                character: Some('1'),
+                index: Some(0)
+            })
+        ));
+        assert!(matches!(
+            Codabar::new("A12345"),
+            Err(Error::Character {
+                character: Some('5'),
+                index: Some(5)
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn guard_inside_data_codabar() -> Result<()> {
+        assert!(matches!(
+            Codabar::new("A12C34B"),
+            Err(Error::Character {
+                character: Some('C'),
+                index: Some(3)
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn shortest_codabar_needs_data_between_guards() -> Result<()> {
+        assert!(matches!(Codabar::new("AB"), Err(Error::Length { .. })));
+        assert!(Codabar::new("A1B").is_ok());
         Ok(())
     }
 
