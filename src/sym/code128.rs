@@ -280,15 +280,17 @@ impl CharacterSet {
         }
     }
 
-    fn lookup(self, s: &str) -> Result<Unit> {
-        let p = self.index()?;
+    fn lookup(self, s: &str, source_index: usize) -> Result<Unit> {
+        let p = self
+            .index()
+            .map_err(|_| Error::character(s.chars().next(), Some(source_index)))?;
 
         match CHARS
             .iter()
             .position(|character| character.0.get(p).is_some_and(|value| *value == s))
         {
             Some(i) => self.unit(i),
-            None => Err(Error::character(s.chars().next(), None)),
+            None => Err(Error::character(s.chars().next(), Some(source_index))),
         }
     }
 }
@@ -313,7 +315,7 @@ impl Code128 {
     fn parse(chars: Vec<char>) -> Result<Vec<Unit>> {
         let mut units: Vec<Unit> = vec![];
         let mut char_set = CharacterSet::None;
-        let mut carry: Option<char> = None;
+        let mut carry: Option<(usize, char)> = None;
         // SHIFT sonrasında yalnız bir sonraki karakterin çözümleneceği geçici küme.
         let mut shift: Option<CharacterSet> = None;
 
@@ -323,7 +325,7 @@ impl Code128 {
                     char_set = CharacterSet::from_char(ch)?;
 
                     let c = format!("START-{}", ch);
-                    let u = char_set.lookup(&c)?;
+                    let u = char_set.lookup(&c, index)?;
                     units.push(u);
                 }
                 'À' | 'Ɓ' | 'Ć' => {
@@ -331,7 +333,7 @@ impl Code128 {
                         return Err(Error::character(Some(ch), Some(index)));
                     }
 
-                    let u = char_set.lookup(&ch.to_string())?;
+                    let u = char_set.lookup(&ch.to_string(), index)?;
                     units.push(u);
 
                     char_set = CharacterSet::from_char(ch)?;
@@ -350,22 +352,29 @@ impl Code128 {
                         return Err(Error::character(Some(ch), Some(index)));
                     }
 
-                    let u = char_set.lookup(&ch.to_string())?;
+                    let u = char_set.lookup(&ch.to_string(), index)?;
                     units.push(u);
                     shift = Some(target);
                 }
                 d if d.is_ascii_digit() && char_set == CharacterSet::C => match carry {
-                    None => carry = Some(d),
-                    Some(n) => {
+                    None => carry = Some((index, d)),
+                    Some((_, n)) => {
                         let num = format!("{}{}", n, d);
-                        let u = char_set.lookup(&num)?;
+                        let u = char_set.lookup(&num, index)?;
                         units.push(u);
                         carry = None;
                     }
                 },
                 _ => {
+                    // C kümesindeki rakamlar ikili gruplar halinde kodlanır. Araya FNC1 veya
+                    // başka bir simge girdiğinde, iki rakamı bu simgenin üzerinden eşleştirmek
+                    // veri sırasını değiştirirdi.
+                    if char_set == CharacterSet::C && carry.is_some() {
+                        return Err(Error::character(Some(ch), Some(index)));
+                    }
+
                     let set = shift.take().unwrap_or(char_set);
-                    let u = set.lookup(&ch.to_string())?;
+                    let u = set.lookup(&ch.to_string(), index)?;
                     units.push(u);
                 }
             }
@@ -377,7 +386,7 @@ impl Code128 {
         }
 
         match carry {
-            Some(character) => Err(Error::character(Some(character), None)),
+            Some((index, character)) => Err(Error::character(Some(character), Some(index))),
             None => Ok(units),
         }
     }
@@ -470,6 +479,45 @@ mod tests {
         assert!(matches!(code128_b, Err(Error::Character { .. })));
         assert!(matches!(code128_c, Err(Error::Character { .. })));
         Ok(())
+    }
+
+    #[test]
+    fn code128_character_errors_preserve_source_positions() {
+        assert_eq!(
+            Code128::new("HELLO"),
+            Err(Error::Character {
+                character: Some('H'),
+                index: Some(0),
+            })
+        );
+        assert_eq!(
+            Code128::new("Àa"),
+            Err(Error::Character {
+                character: Some('a'),
+                index: Some(1),
+            })
+        );
+        assert_eq!(
+            Code128::new("Ć123"),
+            Err(Error::Character {
+                character: Some('3'),
+                index: Some(3),
+            })
+        );
+    }
+
+    #[test]
+    fn code128_set_c_rejects_symbols_between_paired_digits() {
+        assert_eq!(
+            Code128::new("Ć1Ź2"),
+            Err(Error::Character {
+                character: Some('Ź'),
+                index: Some(2),
+            })
+        );
+
+        // FNC1, tamamlanmış bir rakam çiftinden sonra C kümesinde geçerliliğini korur.
+        assert!(Code128::new("Ć12Ź34").is_ok());
     }
 
     #[test]
