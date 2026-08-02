@@ -6,4 +6,6 @@
   yerine `Luma8` kullan.
 - YENİDEN DÜZENLEME: `Parse` içine basit bir düzenli ifade uygulayıp `valid_chars`, `valid_len`
   ve benzeri yardımcıları kaldır.
+- YENİDEN DÜZENLEME: `join_iters` dilimlerle kullanılabilir hâle getirilirse `join_slices`
+  kaldırılabilir.
 - ÖZELLİK: Code93 tam ASCII kipini destekle.

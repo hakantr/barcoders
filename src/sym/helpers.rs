@@ -10,7 +10,6 @@ pub(crate) use std::vec::Vec;
 use crate::error::{Error, Result};
 
 /// Verilen `&[u8]` dilimlerini birleştirip düzleştirerek bir `Vec<u8>` oluşturur.
-/// YAPILACAK: `join_iters` işlevinin dilimlerle nasıl kullanılacağını belirleyip bu işlevi kaldır.
 pub fn join_slices(slices: &[&[u8]]) -> Vec<u8> {
     slices.iter().flat_map(|b| b.iter()).cloned().collect()
 }
@@ -43,6 +42,9 @@ pub fn decimal_chars() -> Vec<char> {
 }
 
 /// Doğrulanmış iç verinin taşıması gereken bir değeri güvenli biçimde çıkarır.
+///
+/// Değişmez bozulmuşsa `assert!` panikler; `fallback` yalnız `Option` çözümünü panik
+/// makrolarına başvurmadan tamamlamak içindir ve normal çalışmada hiç kullanılmaz.
 pub fn invariant_or<T>(value: Option<T>, fallback: T, message: &'static str) -> T {
     assert!(value.is_some(), "{message}");
     value.unwrap_or(fallback)

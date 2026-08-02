@@ -86,7 +86,7 @@ impl ASCII {
         let row = self.generate_row(barcode, row_width)?;
         let mut output = String::with_capacity(output_size);
 
-        for (i, _l) in (0..self.height).enumerate() {
+        for i in 0..self.height {
             output.push_str(row.as_str());
 
             if i < self.height.saturating_sub(1) {

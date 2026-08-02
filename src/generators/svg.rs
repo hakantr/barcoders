@@ -153,7 +153,7 @@ impl SVG {
 
         let opacity_value = fill.to_opacity();
         let opacity = match opacity_value.as_str() {
-            "1.00" | "1" => "".to_string(),
+            "1.00" => "".to_string(),
             o => format!(" fill-opacity=\"{}\" ", o),
         };
 

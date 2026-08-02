@@ -25,6 +25,13 @@ impl EncodedBarcode {
     }
 
     pub(crate) fn from_validated(modules: Vec<u8>) -> Self {
+        // Sembolojiler girdilerini uzunlukça sınırladığından bu yol modül sınırını aşamaz;
+        // değişmez yine de hata ayıklama derlemelerinde denetlenir.
+        debug_assert!(
+            validate_modules(modules.as_slice()).is_ok(),
+            "Sembolojiden gelen kodlama, modül değişmezlerini korumalıdır"
+        );
+
         Self {
             modules: Arc::from(modules),
         }
