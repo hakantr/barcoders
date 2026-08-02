@@ -24,6 +24,13 @@ pub enum Error {
         /// Girdide bulunan uzunluk.
         found: usize,
     },
+    /// Girdi uzunluğu, kabul edilen ayrık uzunlukların hiçbiriyle eşleşmiyor.
+    LengthSet {
+        /// Kabul edilen uzunluklar.
+        expected: &'static [usize],
+        /// Girdide bulunan uzunluk.
+        found: usize,
+    },
     /// Barkodun hedef biçime dönüştürülmesi başarısız oldu.
     Generate {
         /// Üretilmeye çalışılan hedef.
@@ -68,6 +75,10 @@ impl Error {
 
     pub(crate) const fn length(min: usize, max: Option<usize>, found: usize) -> Self {
         Self::Length { min, max, found }
+    }
+
+    pub(crate) const fn length_set(expected: &'static [usize], found: usize) -> Self {
+        Self::LengthSet { expected, found }
     }
 
     #[cfg(any(feature = "image", all(test, feature = "svg")))]
@@ -135,6 +146,21 @@ impl fmt::Display for Error {
                 f,
                 "Barkod verisi en az {min} karakter olmalı; {found} karakter bulundu"
             ),
+            Error::LengthSet { expected, found } => {
+                write!(f, "Barkod verisi ")?;
+                for (index, length) in expected.iter().enumerate() {
+                    if index > 0 {
+                        let separator = if index + 1 == expected.len() {
+                            " veya "
+                        } else {
+                            ", "
+                        };
+                        f.write_str(separator)?;
+                    }
+                    write!(f, "{length}")?;
+                }
+                write!(f, " karakter olmalı; {found} karakter bulundu")
+            }
             Error::Generate { target, reason } => {
                 write!(
                     f,
@@ -188,6 +214,16 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "Barkod verisi 7 ile 8 karakter arasında olmalı; 4 karakter bulundu"
+        );
+    }
+
+    #[test]
+    fn length_set_error_lists_allowed_lengths() {
+        let error = Error::length_set(&[2, 5], 3);
+
+        assert_eq!(
+            error.to_string(),
+            "Barkod verisi 2 veya 5 karakter olmalı; 3 karakter bulundu"
         );
     }
 }

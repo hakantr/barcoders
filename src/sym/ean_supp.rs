@@ -14,6 +14,9 @@ use helpers::{Vec, vec};
 
 const LEFT_GUARD: [u8; 4] = [1, 0, 1, 1];
 
+/// Ek EAN barkodlarının kabul ettiği ayrık girdi uzunlukları.
+const ACCEPTED_LENGTHS: &[usize] = &[2, 5];
+
 /// EAN-5 barkodlarının eşliğini (tek/çift), sağlama basamağına göre eşler.
 const EAN5_PARITY: [[usize; 5]; 10] = [
     [1, 1, 0, 0, 0],
@@ -70,17 +73,25 @@ impl EANSUPP {
     /// Girdinin çözümlenme sonucunu `Result<EANSUPP, Error>` olarak döndürür.
     /// `data` uzunluğuna göre `EAN2` veya `EAN5` varyantını döndürür.
     pub fn new<T: AsRef<str>>(data: T) -> Result<EANSUPP> {
-        EANSUPP::parse(data.as_ref()).and_then(|d| {
-            let digits = helpers::parse_digits(d)?;
+        let data = data.as_ref();
+        let length = data.chars().count();
 
-            match digits.as_slice() {
-                [first, second] => Ok(EANSUPP::EAN2(EAN2([*first, *second]))),
-                [first, second, third, fourth, fifth] => Ok(EANSUPP::EAN5(EAN5([
-                    *first, *second, *third, *fourth, *fifth,
-                ]))),
-                _ => Err(Error::length(2, Some(5), digits.len())),
-            }
-        })
+        // Yalnız tam iki veya tam beş basamak geçerlidir; aradaki uzunluklar bir aralık
+        // iletisiyle değil, kabul edilen seçeneklerle bildirilir.
+        if !ACCEPTED_LENGTHS.contains(&length) {
+            return Err(Error::length_set(ACCEPTED_LENGTHS, length));
+        }
+
+        let d = EANSUPP::parse(data)?;
+        let digits = helpers::parse_digits(d)?;
+
+        match digits.as_slice() {
+            [first, second] => Ok(EANSUPP::EAN2(EAN2([*first, *second]))),
+            [first, second, third, fourth, fifth] => Ok(EANSUPP::EAN5(EAN5([
+                *first, *second, *third, *fourth, *fifth,
+            ]))),
+            _ => Err(Error::length_set(ACCEPTED_LENGTHS, digits.len())),
+        }
     }
 
     fn raw_data(&self) -> &[u8] {
@@ -231,7 +242,30 @@ mod tests {
     fn invalid_len_ean2() -> Result<()> {
         let ean2 = EANSUPP::new("123");
 
-        assert!(matches!(ean2, Err(Error::Length { .. })));
+        assert!(matches!(
+            ean2,
+            Err(Error::LengthSet {
+                expected: &[2, 5],
+                found: 3
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_lengths_report_accepted_options() -> Result<()> {
+        assert!(matches!(
+            EANSUPP::new("1"),
+            Err(Error::LengthSet { found: 1, .. })
+        ));
+        assert!(matches!(
+            EANSUPP::new("1234"),
+            Err(Error::LengthSet { found: 4, .. })
+        ));
+        assert!(matches!(
+            EANSUPP::new("123456"),
+            Err(Error::LengthSet { found: 6, .. })
+        ));
         Ok(())
     }
 
