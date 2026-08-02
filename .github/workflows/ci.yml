@@ -48,6 +48,12 @@ jobs:
           select(.name == "gpui" and .source == null and
           (.manifest_path | endswith("/gpui/crates/gpui/Cargo.toml")))' >/dev/null
 
+      - name: Lisans denetleyicisini kur
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Bağımlılık lisans politikasını denetle
+        run: cargo deny check licenses
+
       - name: Biçimi denetle
         run: cargo fmt --all -- --check
 
@@ -151,3 +157,31 @@ jobs:
 
       - name: Güncel kararlı Rust ile sına
         run: cargo +stable test --all-features --all-targets
+
+  fuzz_smoke:
+    name: Fuzz hedefi duman testi
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: barcoders
+    steps:
+      - name: Barcoders deposunu al
+        uses: actions/checkout@v6
+        with:
+          path: barcoders
+
+      - name: Yerel GPUI kaynağını al
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GPUI_REPOSITORY }}
+          ref: ${{ env.GPUI_REVISION }}
+          path: gpui
+
+      - name: Nightly araç zincirini kur
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Fuzz aracını kur
+        run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
+
+      - name: Kamu API'si fuzz hedefini çalıştır
+        run: cargo +nightly fuzz run public_api -- -runs=2000

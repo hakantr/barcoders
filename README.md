@@ -20,17 +20,19 @@ Yalnızca kodlama işlevleri için:
 
 ```toml
 [dependencies]
-barcoders = "3.0.0"
+barcoders = { version = "3.0.0", default-features = false }
 ```
 
 Belirli çıktı biçimleri üretmek için gerekli özellikleri etkinleştirin:
 
 ```toml
 [dependencies]
-barcoders = { version = "3.0.0", features = ["image", "ascii", "svg", "json"] }
+barcoders = { version = "3.0.0", default-features = false, features = ["image", "ascii", "svg", "json"] }
 ```
 
-Her üreteç isteğe bağlı bir özelliktir; böylece yalnızca kullandığınız işlevleri derlersiniz.
+Varsayılan özellik kümesi `ascii`, `json`, `svg` ve `std` özelliklerini etkinleştirir. Yalnızca
+kullandığınız işlevleri derlemek için `default-features = false` belirtip gereken üreteç
+özelliklerini açıkça seçin. `image` ve `gpui` varsayılan kümeye dahil değildir.
 
 ## Belgeler
 
@@ -98,7 +100,9 @@ hatasız tut.
 Üreteçlere verilen ham ikili gösterimler en fazla 100.000 modül, bellek ayıran çıktılar ise en fazla
 64 MiB ile sınırlıdır. Bu sınırlar bellek tahsisinden önce denetlenir ve aşıldığında
 `Error::ResourceLimit` döndürülür. Boş bir gösterim çizilebilir bir barkod tanımlamadığından
-üreteçler tarafından `Error::Length` ile reddedilir.
+üreteçler tarafından `Error::Length` ile reddedilir. Görüntüyü 90° veya 270° döndürmek kaynak ve
+hedef tamponlarını aynı anda gerektirdiğinden, iki tamponun toplamı 64 MiB çalışma belleği sınırına
+dahildir.
 
 ## Örnekler
 

@@ -7,7 +7,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! barcoders = {version = "*", features = ["image"]}
+//! barcoders = { version = "*", default-features = false, features = ["image"] }
 //! ```
 //!
 //! Özellikler:
