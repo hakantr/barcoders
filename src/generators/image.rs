@@ -1090,7 +1090,7 @@ mod tests {
             write_file(generated.as_slice(), "itf.webp")?;
         }
 
-        assert_eq!(generated.len(), 116);
+        assert_eq!(generated.len(), 118);
         Ok(())
     }
 
@@ -1111,7 +1111,7 @@ mod tests {
         let generated = img.generate_buffer(itf.encode())?;
 
         assert_eq!(generated.height(), 130);
-        assert_eq!(generated.width(), 116);
+        assert_eq!(generated.width(), 117);
         Ok(())
     }
 

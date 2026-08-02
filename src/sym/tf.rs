@@ -20,10 +20,12 @@ const WIDTHS: [&str; 10] = [
     "NWNWN",
 ];
 
+// Koruma desenlerindeki geniş öğeler, veri karakterleriyle aynı 3:1 geniş/dar oranını kullanır;
+// spesifikasyon aynı sembol içinde tek bir oran ister.
 const ITF_START: [u8; 4] = [1, 0, 1, 0];
-const ITF_STOP: [u8; 4] = [1, 1, 0, 1];
-const STF_START: [u8; 8] = [1, 1, 0, 1, 1, 0, 1, 0];
-const STF_STOP: [u8; 8] = [1, 1, 0, 1, 0, 1, 1, 0];
+const ITF_STOP: [u8; 5] = [1, 1, 1, 0, 1];
+const STF_START: [u8; 10] = [1, 1, 1, 0, 1, 1, 1, 0, 1, 0];
+const STF_STOP: [u8; 10] = [1, 1, 1, 0, 1, 0, 1, 1, 1, 0];
 
 /// Doğrulanmış standart 2-of-5 verisi.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -250,7 +252,7 @@ mod tests {
 
         assert_eq!(
             collapse_vec(itf.encode()),
-            "10101110100010101110001110111010001010001110100011100010101010100011100011101101"
+            "101011101000101011100011101110100010100011101000111000101010101000111000111011101"
                 .to_string()
         );
         Ok(())
@@ -260,7 +262,11 @@ mod tests {
     fn stf_encode() -> Result<()> {
         let stf = TF::standard("1234567")?;
 
-        assert_eq!(collapse_vec(stf.encode()), "110110101110101010111010111010101110111011101010101010111010111011101011101010101110111010101010101110111011010110".to_string());
+        assert_eq!(
+            collapse_vec(stf.encode()),
+            "1110111010111010101011101011101010111011101110101010101011101011101110101110101010111011101010101010111011101110101110"
+                .to_string()
+        );
         Ok(())
     }
 }

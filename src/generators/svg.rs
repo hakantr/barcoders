@@ -428,7 +428,7 @@ mod tests {
             write_file(generated.as_str(), "itf.svg")?;
         }
 
-        assert_eq!(generated.len(), 7123);
+        assert_eq!(generated.len(), 7181);
         Ok(())
     }
 
