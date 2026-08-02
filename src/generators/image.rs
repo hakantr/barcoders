@@ -22,11 +22,8 @@
 //! Daha fazla örnek için README belgesine bakın.
 
 use crate::error::{Error, Result};
-use crate::generators::{validate_barcode, validate_output_bytes};
-use image::{
-    DynamicImage::{self, ImageRgba8},
-    ImageBuffer, ImageFormat, Rgba,
-};
+use crate::generators::{MAX_OUTPUT_BYTES, validate_barcode, validate_output_bytes};
+use image::{DynamicImage::ImageRgba8, ImageBuffer, ImageFormat, Rgba, imageops};
 use std::io::Cursor;
 
 macro_rules! image_variants {
@@ -168,7 +165,7 @@ impl Image {
         };
 
         let mut bytes: Vec<u8> = vec![];
-        let img = self.place_pixels(&barcode)?;
+        let img = ImageRgba8(self.place_pixels(&barcode)?);
 
         img.write_to(&mut Cursor::new(&mut bytes), format)
             .map_err(|_| Error::generate(target, "görüntü kodlayıcısı çıktıyı yazamadı"))?;
@@ -181,12 +178,10 @@ impl Image {
         self,
         barcode: T,
     ) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
-        let img = self.place_pixels(&barcode)?;
-
-        Ok(img.to_rgba8())
+        self.place_pixels(&barcode)
     }
 
-    fn place_pixels<T: AsRef<[u8]>>(&self, barcode: T) -> Result<DynamicImage> {
+    fn place_pixels<T: AsRef<[u8]>>(&self, barcode: T) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let barcode = barcode.as_ref();
         validate_barcode(barcode)?;
         let (xdim, height, rotation, bg, fg) = expand_image_variants!(
@@ -213,36 +208,76 @@ impl Image {
             .checked_mul(u64::from(height))
             .ok_or_else(|| Error::dimension("RGBA kanal sayısı u64 aralığını aşıyor"))?;
         validate_output_bytes(channel_count)?;
-        usize::try_from(channel_count)
+        let working_bytes = match rotation {
+            Rotation::Ninety | Rotation::TwoSeventy => channel_count
+                .checked_mul(2)
+                .ok_or_else(|| Error::dimension("döndürme çalışma belleği u64 aralığını aşıyor"))?,
+            Rotation::Zero | Rotation::OneEighty => channel_count,
+        };
+        if working_bytes > MAX_OUTPUT_BYTES {
+            return Err(Error::ResourceLimit {
+                resource: "görüntü çalışma belleği",
+                requested: working_bytes,
+                maximum: MAX_OUTPUT_BYTES,
+            });
+        }
+        let channel_count = usize::try_from(channel_count)
             .map_err(|_| Error::dimension("RGBA kanal sayısı usize aralığını aşıyor"))?;
         let row_length = usize::try_from(row_channels)
             .map_err(|_| Error::dimension("satır kanal sayısı usize aralığını aşıyor"))?;
 
-        // Barkod yalnız yatay eksende değiştiğinden tek bir satır kurulur ve tüm yüksekliğe
-        // kopyalanır.
-        let mut row: Vec<u8> = Vec::with_capacity(row_length);
+        let mut buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+        if buffer.as_raw().len() != channel_count {
+            return Err(Error::dimension(
+                "oluşturulan RGBA tamponu beklenen boyutla eşleşmiyor",
+            ));
+        }
 
+        // Barkod yalnız yatay eksende değiştiğinden ilk satır doğrudan nihai tamponda kurulur;
+        // kalan satırlar ek bir satır tahsis edilmeden kopyalanır.
+        let first_row = buffer
+            .as_mut()
+            .get_mut(..row_length)
+            .ok_or_else(|| Error::dimension("ilk görüntü satırı oluşturulamadı"))?;
+        let mut pixels = first_row.chunks_exact_mut(4);
         for &module in barcode {
             let color = if module == 0 { bg } else { fg };
 
             for _ in 0..xdim {
-                row.extend_from_slice(&color.0);
+                let pixel = pixels
+                    .next()
+                    .ok_or_else(|| Error::dimension("görüntü satırı beklenenden kısa"))?;
+                pixel.copy_from_slice(&color.0);
             }
         }
-
-        let mut buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-        for line in buffer.chunks_mut(row_length) {
-            line.copy_from_slice(row.as_slice());
+        if pixels.next().is_some() {
+            return Err(Error::dimension("görüntü satırı beklenenden uzun"));
         }
 
-        let img = ImageRgba8(buffer);
+        let raw = buffer.as_mut();
+        for row_index in 1..usize::try_from(height)
+            .map_err(|_| Error::dimension("görüntü yüksekliği usize aralığını aşıyor"))?
+        {
+            let row_start = row_index
+                .checked_mul(row_length)
+                .ok_or_else(|| Error::dimension("görüntü satırı konumu usize aralığını aşıyor"))?;
+            let row_end = row_start
+                .checked_add(row_length)
+                .ok_or_else(|| Error::dimension("görüntü satırı sonu usize aralığını aşıyor"))?;
+            if row_end > raw.len() {
+                return Err(Error::dimension("görüntü satırı tamponun dışına taşıyor"));
+            }
+            raw.copy_within(..row_length, row_start);
+        }
 
         Ok(match rotation {
-            Rotation::Ninety => img.rotate90(),
-            Rotation::OneEighty => img.rotate180(),
-            Rotation::TwoSeventy => img.rotate270(),
-            _ => img,
+            Rotation::Ninety => imageops::rotate90(&buffer),
+            Rotation::OneEighty => {
+                imageops::rotate180_in_place(&mut buffer);
+                buffer
+            }
+            Rotation::TwoSeventy => imageops::rotate270(&buffer),
+            Rotation::Zero => buffer,
         })
     }
 }
@@ -284,15 +319,24 @@ mod tests {
             .map_err(|_| Error::generate("test dosyası", "baytlar dosyaya yazılamadı"))
     }
 
-    fn assert_png(generator: Image, barcode: &[u8], generated: &[u8]) -> Result<()> {
-        let decoded = image::load_from_memory_with_format(generated, ImageFormat::Png)
-            .map_err(|_| Error::generate("PNG testi", "üretilen görüntü çözülemedi"))?
+    fn assert_encoded_image(
+        generator: Image,
+        barcode: &[u8],
+        generated: &[u8],
+        format: ImageFormat,
+    ) -> Result<()> {
+        let decoded = image::load_from_memory_with_format(generated, format)
+            .map_err(|_| Error::generate("görüntü testi", "üretilen görüntü çözülemedi"))?
             .to_rgba8();
         let expected = generator.generate_buffer(barcode)?;
 
         assert_eq!(decoded.dimensions(), expected.dimensions());
         assert_eq!(decoded.as_raw(), expected.as_raw());
         Ok(())
+    }
+
+    fn assert_png(generator: Image, barcode: &[u8], generated: &[u8]) -> Result<()> {
+        assert_encoded_image(generator, barcode, generated, ImageFormat::Png)
     }
 
     #[test]
@@ -305,7 +349,7 @@ mod tests {
             write_file(generated.as_slice(), "ean13.gif")?;
         }
 
-        assert_eq!(generated.len(), 918);
+        assert_encoded_image(gif, &ean13.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -377,7 +421,7 @@ mod tests {
             write_file(generated.as_slice(), "ean13.webp")?;
         }
 
-        assert_eq!(generated.len(), 150);
+        assert_encoded_image(webp, &ean13.encode(), &generated, ImageFormat::WebP)?;
         Ok(())
     }
 
@@ -423,7 +467,7 @@ mod tests {
             write_file(generated.as_slice(), "colored_ean13.gif")?;
         }
 
-        assert_eq!(generated.len(), 1084);
+        assert_encoded_image(gif, &ean13.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -496,7 +540,7 @@ mod tests {
             write_file(generated.as_slice(), "code39.gif")?;
         }
 
-        assert_eq!(generated.len(), 911);
+        assert_encoded_image(gif, &code39.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -520,7 +564,7 @@ mod tests {
             write_file(generated.as_slice(), "code39_180.gif")?;
         }
 
-        assert_eq!(generated.len(), 969);
+        assert_encoded_image(gif, &code39.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -568,7 +612,7 @@ mod tests {
             write_file(generated.as_slice(), "code93.gif")?;
         }
 
-        assert_eq!(generated.len(), 982);
+        assert_encoded_image(gif, &code93.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -592,7 +636,7 @@ mod tests {
             write_file(generated.as_slice(), "code93_180.gif")?;
         }
 
-        assert_eq!(generated.len(), 1061);
+        assert_encoded_image(gif, &code93.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -640,7 +684,7 @@ mod tests {
             write_file(generated.as_slice(), "code11.gif")?;
         }
 
-        assert_eq!(generated.len(), 981);
+        assert_encoded_image(gif, &code11.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -688,7 +732,7 @@ mod tests {
             write_file(generated.as_slice(), "codabar.gif")?;
         }
 
-        assert_eq!(generated.len(), 1653);
+        assert_encoded_image(gif, &codabar.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -712,7 +756,7 @@ mod tests {
             write_file(generated.as_slice(), "codabar_90.gif")?;
         }
 
-        assert_eq!(generated.len(), 174);
+        assert_encoded_image(gif, &codabar.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -760,7 +804,7 @@ mod tests {
             write_file(generated.as_slice(), "code128.gif")?;
         }
 
-        assert_eq!(generated.len(), 2741);
+        assert_encoded_image(gif, &code128.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -784,7 +828,7 @@ mod tests {
             write_file(generated.as_slice(), "code128_180.gif")?;
         }
 
-        assert_eq!(generated.len(), 2752);
+        assert_encoded_image(gif, &code128.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -877,7 +921,7 @@ mod tests {
             write_file(generated.as_slice(), "ean8.gif")?;
         }
 
-        assert_eq!(generated.len(), 897);
+        assert_encoded_image(gif, &ean8.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -901,7 +945,7 @@ mod tests {
             write_file(generated.as_slice(), "ean8.webp")?;
         }
 
-        assert_eq!(generated.len(), 114);
+        assert_encoded_image(webp, &ean8.encode(), &generated, ImageFormat::WebP)?;
         Ok(())
     }
 
@@ -949,7 +993,7 @@ mod tests {
             write_file(generated.as_slice(), "ean5.gif")?;
         }
 
-        assert_eq!(generated.len(), 655);
+        assert_encoded_image(gif, &ean5.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -973,7 +1017,7 @@ mod tests {
             write_file(generated.as_slice(), "ean5.webp")?;
         }
 
-        assert_eq!(generated.len(), 124);
+        assert_encoded_image(webp, &ean5.encode(), &generated, ImageFormat::WebP)?;
         Ok(())
     }
 
@@ -1066,7 +1110,7 @@ mod tests {
             write_file(generated.as_slice(), "itf.gif")?;
         }
 
-        assert_eq!(generated.len(), 1410);
+        assert_encoded_image(gif, &itf.encode(), &generated, ImageFormat::Gif)?;
         Ok(())
     }
 
@@ -1090,7 +1134,7 @@ mod tests {
             write_file(generated.as_slice(), "itf.webp")?;
         }
 
-        assert_eq!(generated.len(), 118);
+        assert_encoded_image(webp, &itf.encode(), &generated, ImageFormat::WebP)?;
         Ok(())
     }
 
@@ -1168,6 +1212,31 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn rotated_images_include_both_buffers_in_the_memory_limit() -> Result<()> {
+        let xdim = u32::try_from(MAX_OUTPUT_BYTES / 8 + 1)
+            .map_err(|_| Error::dimension("test görüntü genişliği u32 aralığını aşıyor"))?;
+
+        for rotation in [Rotation::Ninety, Rotation::TwoSeventy] {
+            let img = Image::ImageBuffer {
+                height: 1,
+                xdim,
+                rotation,
+                foreground: Color::black(),
+                background: Color::white(),
+            };
+
+            assert!(matches!(
+                img.generate_buffer([1]),
+                Err(Error::ResourceLimit {
+                    resource: "görüntü çalışma belleği",
+                    ..
+                })
+            ));
+        }
         Ok(())
     }
 
