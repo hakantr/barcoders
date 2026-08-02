@@ -59,19 +59,19 @@ pub const ENCODINGS: [[[u8; 7]; 10]; 3] = [
     ],
 ];
 
-/// Sol taraftaki basamakların eşliğini (tek/çift), barkod verisinin sayı sistemi bölümündeki ilk
-/// basamağa göre eşler.
-const PARITY: [[usize; 5]; 10] = [
-    [0, 0, 0, 0, 0],
-    [0, 1, 0, 1, 1],
-    [0, 1, 1, 0, 1],
-    [0, 1, 1, 1, 0],
-    [1, 0, 0, 1, 1],
-    [1, 1, 0, 0, 1],
-    [1, 1, 1, 0, 0],
-    [1, 0, 1, 0, 1],
-    [1, 0, 1, 1, 0],
-    [1, 1, 0, 1, 0],
+/// Sol gruptaki altı basamağın eşliğini (tek/çift), barkodun çubuk olarak çizilmeyen ilk
+/// basamağına göre eşler. Sol grubun ilk basamağı her zaman tek (A) eşlikle kodlanır.
+const PARITY: [[usize; 6]; 10] = [
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 1, 1],
+    [0, 0, 1, 1, 0, 1],
+    [0, 0, 1, 1, 1, 0],
+    [0, 1, 0, 0, 1, 1],
+    [0, 1, 1, 0, 0, 1],
+    [0, 1, 1, 1, 0, 0],
+    [0, 1, 0, 1, 0, 1],
+    [0, 1, 0, 1, 1, 0],
+    [0, 1, 1, 0, 1, 0],
 ];
 
 /// Sol koruma deseni.
@@ -119,18 +119,6 @@ impl EAN13 {
         helpers::modulo_10_checksum(self.0.as_slice(), true)
     }
 
-    fn number_system_digit(&self) -> u8 {
-        helpers::invariant_or(
-            self.0.get(1).copied(),
-            0,
-            "EAN-13 sayı sistemi basamağı oluşturucuda doğrulanmış olmalıdır",
-        )
-    }
-
-    fn number_system_encoding(&self) -> [u8; 7] {
-        self.char_encoding(0, self.number_system_digit())
-    }
-
     fn checksum_encoding(&self) -> [u8; 7] {
         self.char_encoding(2, self.checksum_digit())
     }
@@ -147,9 +135,11 @@ impl EAN13 {
         )
     }
 
+    /// EAN-13'ün ilk basamağı çubuk olarak çizilmez; sol grup, ikinci basamaktan başlayan ve
+    /// eşlik düzeniyle kodlanan altı basamaktır.
     fn left_digits(&self) -> &[u8] {
         helpers::invariant_or(
-            self.0.get(2..7),
+            self.0.get(1..7),
             &[],
             "EAN-13 sol basamakları oluşturucuda doğrulanmış olmalıdır",
         )
@@ -163,7 +153,7 @@ impl EAN13 {
         )
     }
 
-    fn parity_mapping(&self) -> [usize; 5] {
+    fn parity_mapping(&self) -> [usize; 6] {
         let first_digit = helpers::invariant_or(
             self.0.first().copied(),
             0,
@@ -172,7 +162,7 @@ impl EAN13 {
         let parity = PARITY.get(usize::from(first_digit)).copied();
         helpers::invariant_or(
             parity,
-            [0; 5],
+            [0; 6],
             "EAN-13 eşlik düzeni doğrulanmış basamakla eşleşmelidir",
         )
     }
@@ -202,14 +192,12 @@ impl EAN13 {
     /// Barkodu kodlar.
     /// İkili basamakları bir `Vec<u8>` içinde döndürür.
     pub fn encode(&self) -> Vec<u8> {
-        let number_system = self.number_system_encoding();
         let left_payload = self.left_payload();
         let right_payload = self.right_payload();
         let checksum = self.checksum_encoding();
 
         helpers::join_slices(&[
             &LEFT_GUARD,
-            &number_system,
             left_payload.as_slice(),
             &MIDDLE_GUARD,
             right_payload.as_slice(),
