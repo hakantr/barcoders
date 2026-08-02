@@ -51,6 +51,14 @@
 //! - FNC3: ```Ż``` (```\u{017B}```)
 //! - FNC4: ```ż``` (```\u{017C}```)
 //! - SHIFT: ```Ž``` (```\u{017D}```)
+//!
+//! ## SHIFT
+//!
+//! ```Ž``` yalnız A ve B kümelerinde geçerlidir ve hemen sonraki tek karakteri diğer kümede
+//! (A ⇄ B) kodlar; sonrasında etkin küme değişmeden sürer. Örneğin ```À``` ile başlayan bir
+//! barkodda ```Že```, yalnız küçük ```e``` karakterini B kümesinde kodlar. SHIFT'in son karakter
+//! olması, art arda gelmesi, C kümesinde kullanılması veya hedef kümede bulunmayan bir karakterle
+//! izlenmesi `Error::Character` döndürür.
 
 use crate::error::*;
 use crate::sym::helpers;
@@ -303,6 +311,8 @@ impl Code128 {
         let mut units: Vec<Unit> = vec![];
         let mut char_set = CharacterSet::None;
         let mut carry: Option<char> = None;
+        // SHIFT sonrasında yalnız bir sonraki karakterin çözümleneceği geçici küme.
+        let mut shift: Option<CharacterSet> = None;
 
         for (index, ch) in chars.into_iter().enumerate() {
             match ch {
@@ -314,14 +324,32 @@ impl Code128 {
                     units.push(u);
                 }
                 'À' | 'Ɓ' | 'Ć' => {
-                    if char_set == CharacterSet::C && carry.is_some() {
+                    if shift.is_some() || (char_set == CharacterSet::C && carry.is_some()) {
                         return Err(Error::character(Some(ch), Some(index)));
-                    } else {
-                        let u = char_set.lookup(&ch.to_string())?;
-                        units.push(u);
-
-                        char_set = CharacterSet::from_char(ch)?;
                     }
+
+                    let u = char_set.lookup(&ch.to_string())?;
+                    units.push(u);
+
+                    char_set = CharacterSet::from_char(ch)?;
+                }
+                'Ž' => {
+                    // SHIFT yalnız A ve B kümelerinde tanımlıdır ve art arda kullanılamaz.
+                    let target = match char_set {
+                        CharacterSet::A => CharacterSet::B,
+                        CharacterSet::B => CharacterSet::A,
+                        CharacterSet::C | CharacterSet::None => {
+                            return Err(Error::character(Some(ch), Some(index)));
+                        }
+                    };
+
+                    if shift.is_some() {
+                        return Err(Error::character(Some(ch), Some(index)));
+                    }
+
+                    let u = char_set.lookup(&ch.to_string())?;
+                    units.push(u);
+                    shift = Some(target);
                 }
                 d if d.is_ascii_digit() && char_set == CharacterSet::C => match carry {
                     None => carry = Some(d),
@@ -333,10 +361,16 @@ impl Code128 {
                     }
                 },
                 _ => {
-                    let u = char_set.lookup(&ch.to_string())?;
+                    let set = shift.take().unwrap_or(char_set);
+                    let u = set.lookup(&ch.to_string())?;
                     units.push(u);
                 }
             }
+        }
+
+        if shift.is_some() {
+            // Askıda kalan SHIFT, kodlanacak karakteri olmayan bir küme geçişi bırakır.
+            return Err(Error::character(Some('Ž'), None));
         }
 
         match carry {
@@ -464,6 +498,42 @@ mod tests {
             collapse_vec(code128_a.encode()),
             "110100001001000101100010110000100100110100001100011101011"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn code128_shift_encodes_next_char_in_other_set() -> Result<()> {
+        // A kümesinden tek karakterlik B geçişi: 'e' yalnız B kümesinde bulunur.
+        let a_to_b = Code128::new("ÀŽe")?;
+        // B kümesinden tek karakterlik A geçişi: ENQ yalnız A kümesinde bulunur.
+        let b_to_a = Code128::new("ƁaŽ\u{0005}a")?;
+
+        assert_eq!(
+            collapse_vec(a_to_b.encode()),
+            "110100001001111010001010110010000110110110001100011101011"
+        );
+        assert_eq!(
+            collapse_vec(b_to_a.encode()),
+            "1101001000010010110000111101000101011001000010010110000100011001001100011101011"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn code128_shift_rejects_invalid_usage() -> Result<()> {
+        // SHIFT hedef kümede bulunmayan bir karakterle izlenemez.
+        assert!(matches!(
+            Code128::new("ÀŽ\u{0005}"),
+            Err(Error::Character { .. })
+        ));
+        // SHIFT, C kümesinde tanımlı değildir.
+        assert!(matches!(Code128::new("ĆŽ12"), Err(Error::Character { .. })));
+        // SHIFT son karakter olamaz.
+        assert!(matches!(Code128::new("ÀAŽ"), Err(Error::Character { .. })));
+        // SHIFT art arda kullanılamaz.
+        assert!(matches!(Code128::new("ÀŽŽA"), Err(Error::Character { .. })));
+        // SHIFT'ten hemen sonra küme değişimi gelemez.
+        assert!(matches!(Code128::new("ÀŽƁA"), Err(Error::Character { .. })));
         Ok(())
     }
 
