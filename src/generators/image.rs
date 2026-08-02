@@ -709,7 +709,7 @@ mod tests {
         let generated = gif.generate(codabar.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(generated.as_slice(), "codabar_180.gif")?;
+            write_file(generated.as_slice(), "codabar_90.gif")?;
         }
 
         assert_eq!(generated.len(), 174);
@@ -1015,7 +1015,7 @@ mod tests {
         let generated = png.generate(itf.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(generated.as_slice(), "ift.png")?;
+            write_file(generated.as_slice(), "itf.png")?;
         }
 
         assert_png(png, &itf.encode(), &generated)?;
@@ -1039,7 +1039,7 @@ mod tests {
         let generated = png.generate(stf.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(generated.as_slice(), "sft.png")?;
+            write_file(generated.as_slice(), "stf.png")?;
         }
 
         assert_png(png, &stf.encode(), &generated)?;
@@ -1063,7 +1063,7 @@ mod tests {
         let generated = gif.generate(itf.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(generated.as_slice(), "ift.gif")?;
+            write_file(generated.as_slice(), "itf.gif")?;
         }
 
         assert_eq!(generated.len(), 1410);
@@ -1087,7 +1087,7 @@ mod tests {
         let generated = webp.generate(itf.encode())?;
 
         if WRITE_TO_FILE {
-            write_file(generated.as_slice(), "ift.webp")?;
+            write_file(generated.as_slice(), "itf.webp")?;
         }
 
         assert_eq!(generated.len(), 116);
