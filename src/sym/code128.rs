@@ -299,8 +299,11 @@ impl Code128 {
     pub fn new<T: AsRef<str>>(data: T) -> Result<Code128> {
         let data = data.as_ref();
         let data_len = data.chars().count();
-        if data_len < 2 {
-            return Err(Error::length(2, None, data_len));
+
+        // Üst sınır diğer sembolojilerle tutarlıdır ve sembolojiden üretilen kodlamaların
+        // 100.000 modüllük gösterim sınırının altında kalmasını güvence altına alır.
+        if !(2..=256).contains(&data_len) {
+            return Err(Error::length(2, Some(256), data_len));
         }
 
         Code128::parse(data.chars().collect()).map(Code128)
@@ -545,6 +548,23 @@ mod tests {
         assert!(matches!(Code128::new("ÀŽŽA"), Err(Error::Character { .. })));
         // SHIFT'ten hemen sonra küme değişimi gelemez.
         assert!(matches!(Code128::new("ÀŽƁA"), Err(Error::Character { .. })));
+        Ok(())
+    }
+
+    #[test]
+    fn code128_length_limits() -> Result<()> {
+        let longest_valid = format!("À{}", "A".repeat(255));
+        let too_long = format!("À{}", "A".repeat(256));
+
+        assert!(Code128::new(longest_valid).is_ok());
+        assert!(matches!(
+            Code128::new(too_long),
+            Err(Error::Length {
+                min: 2,
+                max: Some(256),
+                found: 257
+            })
+        ));
         Ok(())
     }
 
