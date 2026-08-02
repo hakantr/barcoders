@@ -81,7 +81,7 @@ impl Error {
         Self::LengthSet { expected, found }
     }
 
-    #[cfg(any(feature = "image", all(test, feature = "svg")))]
+    #[cfg(any(feature = "image", feature = "svg"))]
     pub(crate) const fn generate(target: &'static str, reason: &'static str) -> Self {
         Self::Generate { target, reason }
     }
