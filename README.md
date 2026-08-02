@@ -174,9 +174,11 @@ let gif = Image::GIF {
 
 ### Yerel GPUI ile çizim
 
-`gpui` özelliği crates.io üzerindeki GPUI paketini kullanmaz. Hem Barcoders hem GPUI depoları
-bileşen deposunun kardeşleri olarak bulunmalı ve bağımlılıklar doğrudan yerel kaynaklara
-bağlanmalıdır:
+`gpui` özelliği crates.io üzerindeki GPUI paketini kullanmaz; yalnız kardeş dizindeki yerel
+kaynakla çalışır. `Cargo.toml` içindeki `version = "=0.3.0"` alanı Cargo'nun bağımlılık beyanı
+zorunluluğunu karşılamak için vardır; paketin crates.io'dan indirilen bir kopyasında bu özellik
+kullanılamaz. Hem Barcoders hem GPUI depoları bileşen deposunun kardeşleri olarak bulunmalı ve
+bağımlılıklar doğrudan yerel kaynaklara bağlanmalıdır:
 
 ```toml
 [dependencies]
@@ -281,8 +283,8 @@ Yalnızca kodlama ve varsayılan özellikler:
 cargo test
 ```
 
-Görsel doğrulama amacıyla gerçek görüntü veya SVG dosyaları yazdırmak için ilgili test modülündeki
-`WRITE_TO_FILE` değerini etkinleştirin.
+Görüntü ve SVG testleri, görsel doğrulama amacıyla üretilen dosyaları `target/debug` altına yazar.
+Bu davranışı kapatmak için ilgili test modülündeki `WRITE_TO_FILE` değerini `false` yapın.
 
 ## Lisans
 

@@ -31,6 +31,22 @@ Kayıt türleri:
   kodlayıcıdan gelen genel bir hatayla başarısız oluyordu.
 - [düzeltildi] Görüntü üreteci barkod satırını bir kez kurup tüm yüksekliğe kopyalıyor; her piksel
   için yinelenen sınır ve taşma denetimleri kaldırıldı.
+- [düzeltildi] Code128 SHIFT (`Ž`) artık hemen sonraki tek karakteri diğer kümede (A ⇄ B) kodluyor.
+  Önceden SHIFT simgesi yazılıyor ama küme değiştirilmiyordu; üretilen barkodu okuyucular girilenden
+  farklı veriyle çözüyordu. Askıda kalan, art arda gelen, C kümesinde kullanılan veya hedef kümede
+  bulunmayan bir karakterle izlenen SHIFT `Error::Character` döndürür.
+- [düzeltildi] Code128 B kümesinde 95 değeri DEL (`\u{007F}`) olarak düzeltildi. Önceden rakamları
+  yer değiştirmiş `÷` (`\u{00F7}`) kabul ediliyor, DEL kodlanamıyordu.
+- [değişti] Code128 girdisi diğer sembolojilerle tutarlı biçimde en fazla 256 karakterle sınırlandı;
+  böylece sembolojilerden üretilen kodlamalar 100.000 modüllük gösterim sınırını aşamıyor.
+- [eklendi] Yalnız belirli uzunlukları kabul eden girdiler için `Error::LengthSet` varyantı eklendi.
+  Ek EAN barkodları üç veya dört basamak için artık "2 ile 5 karakter arasında olmalı" biçimindeki
+  yanıltıcı aralık iletisi yerine kabul edilen uzunlukları ("2 veya 5") bildiriyor.
+- [düzeltildi] Code11'de K sağlama basamağı, spesifikasyona uygun olarak on veya daha fazla
+  karakterli verilere ekleniyor; önceden tam on karakterli veriler yalnız C sağlaması alıyordu.
+- [düzeltildi] 2-of-5 başlangıç/bitiş desenlerindeki geniş öğeler veri karakterleriyle aynı 3:1
+  oranını kullanıyor; önceden koruma desenleri 2:1 çizilerek aynı sembol içinde karışık oran
+  oluşuyordu. ITF ve STF çıktı desenleri buna bağlı olarak değişti.
 - [değişti] `image` ve `gpui` özellikleri ihtiyaç duydukları `std` özelliğini kendileri
   etkinleştiriyor.
 - [değişti] CI, `hakantr/gpui` deposunun `981b10eb6da5621c3ba0b456dba82609da1ab550`
@@ -67,6 +83,12 @@ Kayıt türleri:
 - Codabar verilerini A, B, C veya D koruma karakterleriyle sarmalayın; koruma karakteri taşımayan
   ya da veri bölümünde koruma karakteri bulunduran girdiler artık `Error::Character` döndürür.
 - Üreteçlere boş dilim vermeyin; boş gösterim artık `Error::Length` döndürür.
+- Code128 verilerinde SHIFT (`Ž`) artık gerçek küme geçişi uygular: `Ž` sonrasındaki karakter diğer
+  kümede aranır. B kümesinde DEL için `÷` yerine `\u{007F}` kullanın. 256 karakterden uzun Code128
+  girdileri `Error::Length` döndürür.
+- Ek EAN uzunluk hatalarını `Error::Length` yerine `Error::LengthSet` ile eşleyin.
+- Kayıtlı 2-of-5 ve tam on karakterli Code11 çıktılarınız varsa yeniden üretin; koruma desenleri ve
+  K sağlaması değişti.
 - GPUI bileşenlerinde `encode()` sonucunu her render çağrısında üretmek yerine `Barcode::encoded()`
   sonucunu durum içinde saklayın.
 
