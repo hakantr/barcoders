@@ -1,0 +1,7 @@
+artifacts/
+coverage/
+target/
+
+# Fuzzer'ın keşfettiği yerel girdileri tutma; yalnız elle seçilmiş regresyon tohumlarını izle.
+corpus/*/*
+!corpus/public_api/code128_c_fnc1

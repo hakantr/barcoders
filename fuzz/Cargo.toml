@@ -1,0 +1,23 @@
+[package]
+name = "barcoders-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.barcoders]
+path = ".."
+default-features = false
+features = ["ascii", "image", "json", "svg"]
+
+[[bin]]
+name = "public_api"
+path = "fuzz_targets/public_api.rs"
+test = false
+doc = false
+bench = false
