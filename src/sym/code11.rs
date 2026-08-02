@@ -3,8 +3,8 @@
 //! Code11, tüm ondalık basamakları ve tire karakterini kodlayabilir. Başlıca telekomünikasyon
 //! sektöründe kullanılır.
 //!
-//! Code11 ayrık bir sembolojidir. Bu kodlayıcı her zaman C sağlama değerini ekler. On karakterden
-//! uzun barkodlara ikinci bir sağlama basamağı (K) da eklenir.
+//! Code11 ayrık bir sembolojidir. Bu kodlayıcı her zaman C sağlama değerini ekler. On veya daha
+//! fazla karakter içeren barkodlara ikinci bir sağlama basamağı (K) da eklenir.
 
 use crate::error::Result;
 use crate::sym::{Parse, helpers};
@@ -12,7 +12,6 @@ use core::ops::RangeInclusive;
 use helpers::{Vec, vec};
 
 // İzin verilen her karakter için karakter -> ikili değer eşlemeleri.
-// Özel "tam ASCII" karakterleri (, ), [ ve ] ile temsil edilir.
 const CHARS: [(char, &[u8]); 11] = [
     ('0', &[1, 0, 1, 0, 1, 1]),
     ('1', &[1, 1, 0, 1, 0, 1, 1]),
@@ -114,8 +113,8 @@ impl Code11 {
 
         self.push_encoding(&mut enc, self.char_encoding(c_checksum));
 
-        // K sağlaması yalnızca on karakterden uzun barkodlara eklenir.
-        if self.0.len() > 10 {
+        // K sağlaması, spesifikasyon gereği on veya daha fazla karakterli barkodlara eklenir.
+        if self.0.len() >= 10 {
             let k_checksum = self.k_checksum_char(c_checksum);
 
             self.push_encoding(&mut enc, self.char_encoding(k_checksum));
@@ -194,6 +193,19 @@ mod tests {
         assert_eq!(
             collapse_vec(code113.encode()),
             "10110010110101101001011010110101101010100110101011001"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn code11_encode_exactly_10_chars_appends_k_checksum() -> Result<()> {
+        // C sağlaması '0', K sağlaması '3' olarak hesaplanır; kodlama koruma, on veri
+        // karakteri, C ve K sağlamaları ile bitiş korumasını içerir.
+        let code11 = Code11::new("0123456789")?;
+
+        assert_eq!(
+            collapse_vec(code11.encode()),
+            "101100101010110110101101001011011001010101101101101101010011010101001101101001011010101010110110010101011001"
         );
         Ok(())
     }
